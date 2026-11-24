@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Braccio destro">
+<meta name="theme-color" content="#ffffff">
+<title>Braccio destro</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icona.png">
+<link rel="stylesheet" href="/stile.css">
+</head>
+<body>
+
+<section id="ingresso" class="schermo nascosto">
+  <div class="centro">
+    <img src="/icona.png" alt="" class="logo">
+    <h1>Braccio destro</h1>
+    <div id="primo-accesso" class="nascosto">
+      <p>Primo accesso: inserisci il codice che ti ha dato il server.</p>
+      <input id="codice" inputmode="numeric" autocomplete="one-time-code" placeholder="Codice di attivazione">
+      <input id="nome-dispositivo" placeholder="Nome dispositivo (es. iPhone)">
+      <button id="registra" class="primario">Attiva con Face ID</button>
+    </div>
+    <div id="accesso" class="nascosto">
+      <button id="entra" class="primario">Entra con Face ID</button>
+      <p class="piccolo"><a href="#" id="mostra-codice">Nuovo dispositivo? Usa un codice</a></p>
+    </div>
+    <p id="errore-ingresso" class="errore"></p>
+  </div>
+</section>
+
+<section id="app" class="schermo nascosto">
+  <header>
+    <span class="titolo">Braccio destro</span>
+    <button id="esci" class="leggero">Esci</button>
+  </header>
+  <nav>
+    <button data-vista="chat" class="attivo">Chat</button>
+    <button data-vista="bozze">Bozze <span id="num-bozze"></span></button>
+    <button data-vista="posta">Posta</button>
+    <button data-vista="collegamenti">Collegamenti</button>
+  </nav>
+
+  <main>
+    <div id="vista-chat" class="vista">
+      <div id="messaggi"></div>
+    </div>
+    <div id="vista-bozze" class="vista nascosto"><div id="elenco-bozze"></div></div>
+    <div id="vista-posta" class="vista nascosto">
+      <p class="aiuto">Tocca una mail per lavorarci: torni in chat e scrivi cosa fare.</p>
+      <div id="elenco-posta"></div>
+    </div>
+    <div id="vista-collegamenti" class="vista nascosto">
+      <div class="scheda">
+        <h3>Navisio e intermediari.ai</h3>
+        <p>In arrivo: da qui farai tu il login alle due piattaforme, una volta sola. Il braccio destro poi le interroga per avere un secondo parere.</p>
+      </div>
+      <div class="scheda">
+        <h3>Dispositivi autorizzati</h3>
+        <div id="elenco-dispositivi"></div>
+        <p class="piccolo">Per aggiungerne uno: dal server lancia <code>braccio-codice</code> e usa "Nuovo dispositivo".</p>
+      </div>
+    </div>
+  </main>
+
+  <footer id="barra">
+    <div id="contesto" class="nascosto"><span id="contesto-testo"></span> <button id="togli-contesto" class="leggero">✕</button></div>
+    <div class="scorciatoie">
+      <button data-testo="Cerca nella posta polizze e preventivi di ">Cerca documenti</button>
+      <button data-testo="Compila il questionario ">Compila questionario</button>
+      <button data-testo="Rispondi a questa mail: ">Rispondi</button>
+    </div>
+    <form id="modulo">
+      <label class="graffetta" title="Allega"><input type="file" id="file" multiple hidden>📎</label>
+      <textarea id="testo" rows="1" placeholder="Scrivi o detta un'istruzione"></textarea>
+      <button type="submit" id="invia" class="primario">Invia</button>
+    </form>
+    <div id="file-scelti" class="piccolo"></div>
+  </footer>
+</section>
+
+<template id="modello-bozza">
+  <div class="scheda bozza">
+    <label>A <input class="b-a"></label>
+    <label>Cc <input class="b-cc"></label>
+    <label>Oggetto <input class="b-oggetto"></label>
+    <textarea class="b-testo" rows="10"></textarea>
+    <div class="b-allegati piccolo"></div>
+    <div class="riga">
+      <button class="b-scarta leggero">Scarta</button>
+      <button class="b-invia primario">Approva e invia</button>
+    </div>
+    <p class="b-esito piccolo"></p>
+  </div>
+</template>
+
+<script src="/app.js"></script>
+</body>
+</html>

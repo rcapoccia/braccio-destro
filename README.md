@@ -16,3 +16,11 @@ Agente per Stile Italiano. Lavora **su istruzione di Roberto**:
 Installazione (Ubuntu 24.04, root): `bash <(curl -fsSL https://raw.githubusercontent.com/rcapoccia/braccio-destro/main/install.sh)`
 
 Aggiornamento: `bash <(curl -fsSL https://raw.githubusercontent.com/rcapoccia/braccio-destro/main/aggiorna.sh)`
+
+## Pagina web (braccio.stital.it)
+
+- `web/`: pagina privata con accesso solo tramite passkey (Face ID / impronta), chat per le istruzioni,
+  bozze da approvare, posta recente. Gira sul server dietro Caddy (HTTPS automatico).
+- Una mail parte solo quando si tocca "Approva e invia" su una bozza; nessun invio automatico.
+- `installa-web.sh`: installazione una tantum; `braccio-codice`: codice monouso per attivare un nuovo dispositivo.
+- Aggiornamento automatico dal ramo `produzione` ogni 2 minuti (`auto-aggiorna.sh`, elenco in `file-elenco.txt`).

@@ -1,0 +1,53 @@
+:root{--testo:#1f1f1f;--secondario:#666;--bordo:#e3e3e0;--fondo:#f6f6f3;--carta:#fff;--accento:#1a5fb4;--accento-chiaro:#e7f0fb;--avviso:#fdf3dc;--avviso-testo:#7a4d00;--errore:#b42318;--ok:#2b7a2b}
+@media (prefers-color-scheme:dark){:root{--testo:#ececec;--secondario:#a3a3a3;--bordo:#333;--fondo:#141414;--carta:#1e1e1e;--accento:#78a9ec;--accento-chiaro:#1c2a3d;--avviso:#3a2e12;--avviso-testo:#f3cf83;--errore:#f28b82;--ok:#8fd18f}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--testo);background:var(--fondo);font-size:16px}
+.nascosto{display:none!important}
+button{font:inherit;padding:10px 14px;border-radius:10px;border:1px solid var(--bordo);background:var(--carta);color:var(--testo);cursor:pointer}
+button.primario{background:var(--accento);border-color:var(--accento);color:#fff}
+button.leggero{background:none;border:none;color:var(--secondario);padding:6px 8px}
+button:disabled{opacity:.5}
+input,textarea{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--bordo);border-radius:10px;background:var(--carta);color:var(--testo)}
+a{color:var(--accento)}
+.schermo{min-height:100%}
+.centro{max-width:360px;margin:0 auto;padding:18vh 20px 20px;text-align:center;display:flex;flex-direction:column;gap:12px}
+.logo{width:72px;height:72px;border-radius:16px;margin:0 auto}
+h1{font-size:22px;font-weight:500;margin:0}
+h3{font-size:16px;font-weight:500;margin:0 0 6px}
+.piccolo{font-size:13px;color:var(--secondario)}
+.errore{color:var(--errore);font-size:14px}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top));background:var(--carta);border-bottom:1px solid var(--bordo)}
+.titolo{font-weight:500}
+nav{display:flex;gap:4px;padding:6px 8px;background:var(--carta);border-bottom:1px solid var(--bordo);overflow-x:auto}
+nav button{border:none;background:none;color:var(--secondario);padding:6px 10px;white-space:nowrap;font-size:14px}
+nav button.attivo{background:var(--accento-chiaro);color:var(--accento)}
+main{flex:1;overflow-y:auto;padding:12px}
+.vista{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+.aiuto{font-size:13px;color:var(--secondario);margin:0}
+.msg{max-width:88%;padding:10px 12px;border-radius:14px;white-space:pre-wrap;line-height:1.45;font-size:15px}
+.msg.roberto{align-self:flex-end;background:var(--accento-chiaro)}
+.msg.braccio{align-self:flex-start;background:var(--carta);border:1px solid var(--bordo)}
+.msg.errore-msg{border-color:var(--errore)}
+.msg .ora{display:block;font-size:11px;color:var(--secondario);margin-top:4px}
+.msg .titolo-r{font-weight:500;display:block;margin-bottom:4px}
+.file{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.file a{display:block;padding:8px 10px;border:1px solid var(--bordo);border-radius:8px;text-decoration:none;white-space:normal}
+.nota{background:var(--avviso);color:var(--avviso-testo);border-radius:10px;padding:8px 10px;margin-top:8px;font-size:13px;white-space:pre-wrap}
+.scheda{background:var(--carta);border:1px solid var(--bordo);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.bozza label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--secondario)}
+.bozza label input{flex:1}
+.riga{display:flex;gap:8px;justify-content:flex-end}
+.stato-ok{color:var(--ok);font-size:13px}
+.voce{display:block;width:100%;text-align:left;background:var(--carta);border:1px solid var(--bordo);border-radius:12px;padding:10px 12px}
+.voce .su{display:flex;justify-content:space-between;font-size:13px;color:var(--secondario)}
+.voce .og{display:block;margin-top:2px}
+.attesa{align-self:flex-start;color:var(--secondario);font-size:14px;padding:6px 4px}
+footer{background:var(--carta);border-top:1px solid var(--bordo);padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+.scorciatoie{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
+.scorciatoie button{font-size:13px;padding:5px 10px;white-space:nowrap}
+#modulo{display:flex;gap:8px;align-items:flex-end;max-width:720px;margin:0 auto}
+#testo{resize:none;max-height:160px}
+.graffetta{font-size:22px;padding:6px;cursor:pointer}
+#contesto{font-size:13px;background:var(--accento-chiaro);border-radius:8px;padding:4px 8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+code{font-size:13px}

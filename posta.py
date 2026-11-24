@@ -265,6 +265,8 @@ def crea_bozza(originale, dati, allegati=()):
         refs = (originale.get("References", "") + " " + msg_id).strip()
         bozza["References"] = refs
     # Intestazioni interne: non visibili al destinatario nel testo.
+    bozza["Message-ID"] = email.utils.make_msgid(domain=IMAP_USER.rsplit("@", 1)[-1])
+    bozza["X-Braccio-Destro"] = "bozza"
     bozza["X-Braccio-Destro-Categoria"] = dati.get("categoria", "altro")
     bozza["X-Braccio-Destro-Priorita"] = dati.get("priorita", "media")
     bozza.set_content(dati.get("bozza", "").strip() + "\n")
@@ -375,6 +377,28 @@ def leggi(imap, uid_s):
     return email.message_from_bytes(grezzo, policy=email.policy.default) if grezzo else None
 
 
+def bozza_da_istruzione(dati, allegati):
+    """Mail pronta (non inviata) a partire dal risultato di un'istruzione."""
+    bozza = EmailMessage()
+    bozza["From"] = IMAP_USER
+    if dati["a"]:
+        bozza["To"] = ", ".join(dati["a"])
+    if dati["cc"]:
+        bozza["Cc"] = ", ".join(dati["cc"])
+    bozza["Subject"] = dati["oggetto"]
+    bozza["Date"] = email.utils.formatdate(localtime=True)
+    bozza["Message-ID"] = email.utils.make_msgid(domain=IMAP_USER.rsplit("@", 1)[-1])
+    if dati.get("riferimento"):
+        bozza["In-Reply-To"] = dati["riferimento"]
+        bozza["References"] = dati["riferimento"]
+    bozza["X-Braccio-Destro"] = "bozza"
+    bozza.set_content(dati["bozza"].strip() + "\n")
+    for nome, contenuto in allegati:
+        tipo = (mimetypes.guess_type(nome)[0] or "application/pdf").split("/", 1)
+        bozza.add_attachment(contenuto, maintype=tipo[0], subtype=tipo[1], filename=nome)
+    return bozza
+
+
 def esegui_istruzione(imap, bozze, uid_s, msg):
     corpo, _ = testo_da_messaggio(msg)
     dati, allegati, nota = istruzioni.esegui(imap, msg, corpo, "INBOX", IMAP_USER)
@@ -384,19 +408,7 @@ def esegui_istruzione(imap, bozze, uid_s, msg):
                     nota_interna(oggetto, testo, documenti).as_bytes(policy=email.policy.SMTP))
         log.info("UID %s: ricerca eseguita -> nota con %d allegati", uid_s, len(documenti))
         return
-    bozza = EmailMessage()
-    bozza["From"] = IMAP_USER
-    bozza["To"] = ", ".join(dati["a"])
-    if dati["cc"]:
-        bozza["Cc"] = ", ".join(dati["cc"])
-    bozza["Subject"] = dati["oggetto"]
-    bozza["Date"] = email.utils.formatdate(localtime=True)
-    if dati.get("riferimento"):
-        bozza["In-Reply-To"] = dati["riferimento"]
-        bozza["References"] = dati["riferimento"]
-    bozza.set_content(dati["bozza"].strip() + "\n")
-    for nome, contenuto in allegati:
-        bozza.add_attachment(contenuto, maintype="application", subtype="pdf", filename=nome)
+    bozza = bozza_da_istruzione(dati, allegati)
     imap.append(bozze, "(\\Draft)", imaplib.Time2Internaldate(time.time()), bozza.as_bytes(policy=email.policy.SMTP))
     if nota:
         imap.append("INBOX", "", imaplib.Time2Internaldate(time.time()),

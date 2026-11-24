@@ -1,0 +1,16 @@
+posta.py
+mistral.py
+pratiche.py
+questionari.py
+istruzioni.py
+ricerca.py
+moduli/itas_car.json
+moduli/itas_car.pdf
+moduli/compagnie.json
+requirements-web.txt
+web/app.py
+web/static/index.html
+web/static/app.js
+web/static/stile.css
+web/static/manifest.json
+web/static/icona.png
