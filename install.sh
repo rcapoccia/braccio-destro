@@ -18,10 +18,13 @@ read -rsp "Password della email (non si vede mentre scrivi): " IMAP_PASS; echo
 read -rsp "Chiave API Mistral (area di lavoro Braccio destro): " MISTRAL_API_KEY; echo
 
 echo "--- 1/3 Aggiornamenti e sicurezza di base"
-export DEBIAN_FRONTEND=noninteractive
-apt-get update -q
-apt-get upgrade -yq
-apt-get install -yq ca-certificates curl ufw fail2ban unattended-upgrades python3
+export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a
+# Al primo avvio Ubuntu installa da solo gli aggiornamenti: aspettiamo che finisca (max 20 minuti).
+APT="apt-get -o DPkg::Lock::Timeout=1200"
+echo "(se il server sta già installando aggiornamenti, attendo che finisca...)"
+$APT update -q
+$APT upgrade -yq
+$APT install -yq ca-certificates curl ufw fail2ban unattended-upgrades python3
 dpkg-reconfigure -f noninteractive unattended-upgrades
 systemctl enable --now fail2ban
 
