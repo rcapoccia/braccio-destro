@@ -1,0 +1,1184 @@
+{
+ "modulo": "ITAS Mutua - Questionario CAR (Contractors' All Risks)",
+ "compagnia": "ITAS",
+ "ramo": "CAR",
+ "file": "itas_car.pdf",
+ "campi": [
+  {
+   "id": "committente",
+   "tipo": "testo",
+   "domanda": "Committente",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 260,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "appaltatore",
+   "tipo": "testo",
+   "domanda": "Appaltatore",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 281,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "subappaltatori",
+   "tipo": "testo",
+   "domanda": "Subappaltatori",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 302,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "progettisti",
+   "tipo": "testo",
+   "domanda": "Progettisti",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 323,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "contraente",
+   "tipo": "testo",
+   "domanda": "Contraente (ragione sociale)",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 344,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "contraente_domicilio",
+   "tipo": "testo",
+   "domanda": "Contraente domiciliato in (sede legale completa)",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 359,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "assicurato",
+   "tipo": "testo",
+   "domanda": "Assicurato",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 380,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "assicurato_domicilio",
+   "tipo": "testo",
+   "domanda": "Assicurato domiciliato in (sede legale completa)",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 395,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "luogo_opere",
+   "tipo": "testo",
+   "domanda": "Luogo di esecuzione delle opere",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 423,
+     "x1": 561
+    },
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 441,
+     "x1": 561
+    },
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 462,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "descrizione_opere",
+   "tipo": "testo",
+   "domanda": "Descrizione delle opere",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 494,
+     "x1": 561
+    },
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 512,
+     "x1": 561
+    },
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 533,
+     "x1": 561
+    },
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 554,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "data_contratto_appalto",
+   "tipo": "testo",
+   "domanda": "Data del contratto di appalto",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 450,
+     "top": 575,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "durata",
+   "tipo": "testo",
+   "domanda": "Durata dell'assicurazione (es. durata lavori in giorni)",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 626,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "data_inizio",
+   "tipo": "testo",
+   "domanda": "Dalle ore 24 del (data inizio)",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 366,
+     "top": 643,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "data_fine_costruzione",
+   "tipo": "testo",
+   "domanda": "Alle ore 24 del (data fine costruzione)",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 362,
+     "top": 658,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "data_fine_manutenzione",
+   "tipo": "testo",
+   "domanda": "Fino alle ore 24 del (fine periodo di manutenzione)",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 418,
+     "top": 688,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "partita1",
+   "tipo": "testo",
+   "domanda": "Sezione A - Partita 1: opere e impianti permanenti e temporanei (valore contratto d'appalto, in euro)",
+   "righe": [
+    {
+     "pagina": 1,
+     "x": 301,
+     "top": 789,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "partita2",
+   "tipo": "testo",
+   "domanda": "Partita 2: opere e impianti preesistenti (euro)",
+   "righe": [
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 197,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "partita3",
+   "tipo": "testo",
+   "domanda": "Partita 3: costi di demolizione e sgombero (euro)",
+   "righe": [
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 229,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "partita4",
+   "tipo": "testo",
+   "domanda": "Partita 4: macchinario e attrezzature di cantiere (euro)",
+   "righe": [
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 274,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "rct_massimale",
+   "tipo": "testo",
+   "domanda": "Sezione B RCT: massimale per tutti i sinistri (euro)",
+   "righe": [
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 330,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "rct_limite_sinistro",
+   "tipo": "testo",
+   "domanda": "Sezione B RCT: limite per ogni sinistro (euro)",
+   "righe": [
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 348,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "altre_assicurazioni",
+   "tipo": "si_no",
+   "domanda": "Esistono altre coperture assicurative sugli stessi rischi?",
+   "pagina": 2,
+   "si": [
+    383,
+    407
+   ],
+   "no": [
+    457,
+    407
+   ]
+  },
+  {
+   "id": "altre_assicurazioni_dettaglio",
+   "tipo": "testo",
+   "domanda": "Se sì, portata della garanzia",
+   "righe": [
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 435,
+     "x1": 561
+    },
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 452,
+     "x1": 561
+    },
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 471,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "esperienza",
+   "tipo": "si_no",
+   "domanda": "L'appaltatore ha esperienza nel tipo e metodi di costruzione previsti?",
+   "pagina": 2,
+   "si": [
+    383,
+    536
+   ],
+   "no": [
+    457,
+    536
+   ]
+  },
+  {
+   "id": "esperienza_opere",
+   "tipo": "testo",
+   "domanda": "Opere analoghe realizzate dall'appaltatore in passato",
+   "righe": [
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 564,
+     "x1": 561
+    },
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 582,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "subappalti",
+   "tipo": "testo",
+   "domanda": "Lavori e relativi importi eseguiti dai subappaltatori",
+   "righe": [
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 600,
+     "x1": 561
+    },
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 619,
+     "x1": 561
+    },
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 638,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "rischio_sismico",
+   "tipo": "si_no",
+   "domanda": "La zona è soggetta a rischi di terremoto, eruzioni vulcaniche e maremoto?",
+   "pagina": 2,
+   "si": [
+    383,
+    656
+   ],
+   "no": [
+    457,
+    656
+   ]
+  },
+  {
+   "id": "rischio_sismico_dettaglio",
+   "tipo": "testo",
+   "domanda": "Se sì, dettagli",
+   "righe": [
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 685,
+     "x1": 561
+    },
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 703,
+     "x1": 561
+    },
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 722,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "natura_sottosuolo",
+   "tipo": "testo",
+   "domanda": "Natura del sottosuolo",
+   "righe": [
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 752,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "pericoli_geologici",
+   "tipo": "testo",
+   "domanda": "Pericoli di natura geologica",
+   "righe": [
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 771,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "profondita_scavo",
+   "tipo": "testo",
+   "domanda": "Profondità massima di scavo",
+   "righe": [
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 788,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "falda_freatica",
+   "tipo": "testo",
+   "domanda": "Quota della falda freatica",
+   "righe": [
+    {
+     "pagina": 2,
+     "x": 301,
+     "top": 806,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "problemi_geologici",
+   "tipo": "si_no",
+   "domanda": "La natura del sottosuolo e le condizioni geologiche comportano problemi particolari?",
+   "pagina": 3,
+   "si": [
+    383,
+    178
+   ],
+   "no": [
+    457,
+    178
+   ]
+  },
+  {
+   "id": "problemi_geologici_dettaglio",
+   "tipo": "testo",
+   "domanda": "Se sì, problemi e soluzioni previste",
+   "righe": [
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 214,
+     "x1": 561
+    },
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 233,
+     "x1": 561
+    },
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 251,
+     "x1": 561
+    },
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 270,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "corsi_acqua",
+   "tipo": "testo",
+   "domanda": "Nome, distanza minima e dislivello dei più vicini corsi d'acqua, laghi o mare",
+   "righe": [
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 295,
+     "x1": 561
+    },
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 314,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "alluvioni",
+   "tipo": "si_no",
+   "domanda": "Si sono mai verificate alluvioni od inondazioni nella zona?",
+   "pagina": 3,
+   "si": [
+    383,
+    328
+   ],
+   "no": [
+    457,
+    328
+   ]
+  },
+  {
+   "id": "alluvioni_soluzioni",
+   "tipo": "testo",
+   "domanda": "Se sì, soluzioni previste",
+   "righe": [
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 357,
+     "x1": 561
+    },
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 375,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "problemi_climatici",
+   "tipo": "si_no",
+   "domanda": "Le caratteristiche climatiche, meteorologiche e ambientali comportano problemi particolari?",
+   "pagina": 3,
+   "si": [
+    383,
+    400
+   ],
+   "no": [
+    457,
+    400
+   ]
+  },
+  {
+   "id": "problemi_climatici_dettaglio",
+   "tipo": "testo",
+   "domanda": "Se sì, problemi e soluzioni",
+   "righe": [
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 430,
+     "x1": 561
+    },
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 448,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "prevenzione_incendi",
+   "tipo": "testo",
+   "domanda": "Misure di prevenzione ed estinzione incendio previste",
+   "righe": [
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 470,
+     "x1": 561
+    },
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 488,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "sorveglianza_cantiere",
+   "tipo": "testo",
+   "domanda": "Misure di protezione e sorveglianza del cantiere previste (recinzione, guardiania, controlli notturni)",
+   "righe": [
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 524,
+     "x1": 561
+    },
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 543,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "prev_demolizioni",
+   "tipo": "casella",
+   "domanda": "Sono previste demolizioni?",
+   "pagina": 3,
+   "pos": [
+    303,
+    575
+   ]
+  },
+  {
+   "id": "costo_demolizioni",
+   "tipo": "testo",
+   "domanda": "Costo demolizioni",
+   "righe": [
+    {
+     "pagina": 3,
+     "x": 446,
+     "top": 583,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "prev_ampliamenti",
+   "tipo": "casella",
+   "domanda": "Sono previsti ampliamenti?",
+   "pagina": 3,
+   "pos": [
+    303,
+    592
+   ]
+  },
+  {
+   "id": "costo_ampliamenti",
+   "tipo": "testo",
+   "domanda": "Costo ampliamenti",
+   "righe": [
+    {
+     "pagina": 3,
+     "x": 446,
+     "top": 598,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "prev_sottomurazioni",
+   "tipo": "casella",
+   "domanda": "Sono previste sottomurazioni?",
+   "pagina": 3,
+   "pos": [
+    303,
+    609
+   ]
+  },
+  {
+   "id": "costo_sottomurazioni",
+   "tipo": "testo",
+   "domanda": "Costo sottomurazioni",
+   "righe": [
+    {
+     "pagina": 3,
+     "x": 446,
+     "top": 616,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "prev_rifacimenti",
+   "tipo": "casella",
+   "domanda": "Sono previsti rifacimenti di opere preesistenti?",
+   "pagina": 3,
+   "pos": [
+    303,
+    626
+   ]
+  },
+  {
+   "id": "costo_rifacimenti",
+   "tipo": "testo",
+   "domanda": "Costo rifacimenti",
+   "righe": [
+    {
+     "pagina": 3,
+     "x": 446,
+     "top": 633,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "esplosivi",
+   "tipo": "si_no",
+   "domanda": "È previsto l'uso di esplosivi?",
+   "pagina": 3,
+   "si": [
+    383,
+    703
+   ],
+   "no": [
+    457,
+    703
+   ]
+  },
+  {
+   "id": "esplosivi_dettaglio",
+   "tipo": "testo",
+   "domanda": "Se sì, modalità di conservazione e impiego",
+   "righe": [
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 746,
+     "x1": 561
+    },
+    {
+     "pagina": 3,
+     "x": 301,
+     "top": 764,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "altri_rischi",
+   "tipo": "testo",
+   "domanda": "Altri rischi particolari",
+   "righe": [
+    {
+     "pagina": 4,
+     "x": 301,
+     "top": 199,
+     "x1": 561
+    },
+    {
+     "pagina": 4,
+     "x": 301,
+     "top": 218,
+     "x1": 561
+    },
+    {
+     "pagina": 4,
+     "x": 301,
+     "top": 236,
+     "x1": 561
+    },
+    {
+     "pagina": 4,
+     "x": 301,
+     "top": 254,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "fabbricati_adiacenti",
+   "tipo": "testo",
+   "domanda": "RCT: fabbricati adiacenti (età, valore, stato, destinazione d'uso)",
+   "righe": [
+    {
+     "pagina": 4,
+     "x": 301,
+     "top": 321,
+     "x1": 561
+    },
+    {
+     "pagina": 4,
+     "x": 301,
+     "top": 340,
+     "x1": 561
+    },
+    {
+     "pagina": 4,
+     "x": 301,
+     "top": 358,
+     "x1": 561
+    },
+    {
+     "pagina": 4,
+     "x": 301,
+     "top": 377,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "misure_sicurezza",
+   "tipo": "testo",
+   "domanda": "RCT: misure di sicurezza e prevenzione nel luogo dei lavori",
+   "righe": [
+    {
+     "pagina": 4,
+     "x": 301,
+     "top": 409,
+     "x1": 561
+    },
+    {
+     "pagina": 4,
+     "x": 301,
+     "top": 428,
+     "x1": 561
+    },
+    {
+     "pagina": 4,
+     "x": 301,
+     "top": 445,
+     "x1": 561
+    },
+    {
+     "pagina": 4,
+     "x": 301,
+     "top": 464,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "est_progettazione",
+   "tipo": "si_no",
+   "domanda": "Estensione: rischi di progettazione",
+   "pagina": 4,
+   "si": [
+    383,
+    512
+   ],
+   "no": [
+    457,
+    512
+   ]
+  },
+  {
+   "id": "est_maggiori_costi",
+   "tipo": "si_no",
+   "domanda": "Estensione: maggiori costi per lavoro straordinario, notturno, festivo e trasporto a grande velocità",
+   "pagina": 4,
+   "si": [
+    383,
+    544
+   ],
+   "no": [
+    457,
+    544
+   ]
+  },
+  {
+   "id": "est_manutenzione",
+   "tipo": "si_no",
+   "domanda": "Estensione: manutenzione",
+   "pagina": 4,
+   "si": [
+    383,
+    563
+   ],
+   "no": [
+    457,
+    563
+   ]
+  },
+  {
+   "id": "est_manutenzione_estesa",
+   "tipo": "si_no",
+   "domanda": "Estensione: manutenzione estesa",
+   "pagina": 4,
+   "si": [
+    383,
+    580
+   ],
+   "no": [
+    457,
+    580
+   ]
+  },
+  {
+   "id": "est_rc_incrociata",
+   "tipo": "si_no",
+   "domanda": "Estensione: pluralità di assicurati - RC incrociata",
+   "pagina": 4,
+   "si": [
+    383,
+    613
+   ],
+   "no": [
+    457,
+    613
+   ]
+  },
+  {
+   "id": "est_vibrazioni",
+   "tipo": "si_no",
+   "domanda": "Estensione: vibrazione, rimozione, franamento e cedimento del terreno",
+   "pagina": 4,
+   "si": [
+    383,
+    646
+   ],
+   "no": [
+    457,
+    646
+   ]
+  },
+  {
+   "id": "est_trasporto_aereo",
+   "tipo": "si_no",
+   "domanda": "Estensione ulteriore: maggiori costi per trasporto aereo",
+   "pagina": 4,
+   "si": [
+    383,
+    687
+   ],
+   "no": [
+    457,
+    687
+   ]
+  },
+  {
+   "id": "est_scioperi",
+   "tipo": "si_no",
+   "domanda": "Estensione ulteriore: scioperi, sommosse, tumulti, terrorismo, sabotaggio",
+   "pagina": 4,
+   "si": [
+    383,
+    720
+   ],
+   "no": [
+    457,
+    720
+   ]
+  },
+  {
+   "id": "all2_uso",
+   "tipo": "testo",
+   "domanda": "Allegato 2 Fabbricati: uso cui verrà adibito il fabbricato",
+   "righe": [
+    {
+     "pagina": 7,
+     "x": 301,
+     "top": 184,
+     "x1": 561
+    },
+    {
+     "pagina": 7,
+     "x": 301,
+     "top": 203,
+     "x1": 561
+    },
+    {
+     "pagina": 7,
+     "x": 301,
+     "top": 222,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "all2_piani_fuori_terra",
+   "tipo": "testo",
+   "domanda": "Allegato 2: numero piani fuori terra",
+   "righe": [
+    {
+     "pagina": 7,
+     "x": 352,
+     "top": 247,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "all2_piani_interrati",
+   "tipo": "testo",
+   "domanda": "Allegato 2: numero piani interrati",
+   "righe": [
+    {
+     "pagina": 7,
+     "x": 352,
+     "top": 265,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "all2_altezza",
+   "tipo": "testo",
+   "domanda": "Allegato 2: altezza massima del fabbricato",
+   "righe": [
+    {
+     "pagina": 7,
+     "x": 301,
+     "top": 298,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "all2_superficie",
+   "tipo": "testo",
+   "domanda": "Allegato 2: superficie coperta",
+   "righe": [
+    {
+     "pagina": 7,
+     "x": 301,
+     "top": 338,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "all2_cubatura",
+   "tipo": "testo",
+   "domanda": "Allegato 2: cubatura",
+   "righe": [
+    {
+     "pagina": 7,
+     "x": 301,
+     "top": 379,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "all2_struttura",
+   "tipo": "testo",
+   "domanda": "Allegato 2: tipo di struttura portante e sistema di costruzione",
+   "righe": [
+    {
+     "pagina": 7,
+     "x": 301,
+     "top": 420,
+     "x1": 561
+    },
+    {
+     "pagina": 7,
+     "x": 301,
+     "top": 439,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "all2_luce_travi",
+   "tipo": "testo",
+   "domanda": "Allegato 2: luce massima travi",
+   "righe": [
+    {
+     "pagina": 7,
+     "x": 301,
+     "top": 594,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "all2_scavi",
+   "tipo": "testo",
+   "domanda": "Allegato 2 suddivisione lavori: scavi e movimenti terra (euro)",
+   "righe": [
+    {
+     "pagina": 7,
+     "x": 405,
+     "top": 642,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "all2_fondazioni",
+   "tipo": "testo",
+   "domanda": "Allegato 2: fondazione e muri di contenimento (euro)",
+   "righe": [
+    {
+     "pagina": 7,
+     "x": 451,
+     "top": 661,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "all2_strutture",
+   "tipo": "testo",
+   "domanda": "Allegato 2: strutture portanti (euro)",
+   "righe": [
+    {
+     "pagina": 7,
+     "x": 381,
+     "top": 680,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "all2_impianti",
+   "tipo": "testo",
+   "domanda": "Allegato 2: impianti (euro)",
+   "righe": [
+    {
+     "pagina": 7,
+     "x": 345,
+     "top": 699,
+     "x1": 561
+    }
+   ]
+  },
+  {
+   "id": "all2_altro",
+   "tipo": "testo",
+   "domanda": "Allegato 2: altro (euro, con descrizione)",
+   "righe": [
+    {
+     "pagina": 7,
+     "x": 334,
+     "top": 718,
+     "x1": 561
+    }
+   ]
+  }
+ ]
+}

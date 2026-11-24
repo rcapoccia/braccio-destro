@@ -23,8 +23,8 @@ export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a
 APT="apt-get -o DPkg::Lock::Timeout=1200"
 echo "(se il server sta già installando aggiornamenti, attendo che finisca...)"
 $APT update -q
-$APT upgrade -yq
-$APT install -yq ca-certificates curl ufw fail2ban unattended-upgrades python3
+$APT -o Dpkg::Options::=--force-confold upgrade -yq
+$APT -o Dpkg::Options::=--force-confold install -yq ca-certificates curl ufw fail2ban unattended-upgrades python3 python3-pypdf python3-reportlab
 dpkg-reconfigure -f noninteractive unattended-upgrades
 systemctl enable --now fail2ban
 
@@ -38,8 +38,11 @@ echo "--- 3/3 Agente posta (solo lettura + bozze, nessun invio)"
 id braccio >/dev/null 2>&1 || useradd --system --home /var/lib/braccio-destro --shell /usr/sbin/nologin braccio
 install -d -o braccio -g braccio -m 700 /var/lib/braccio-destro
 install -d -m 755 /opt/braccio-destro
-curl -fsSL "$REPO_RAW/posta.py" -o /opt/braccio-destro/posta.py
-chmod 644 /opt/braccio-destro/posta.py
+install -d -m 755 /opt/braccio-destro/moduli
+for f in posta.py mistral.py pratiche.py questionari.py moduli/itas_car.json moduli/itas_car.pdf moduli/compagnie.json; do
+  curl -fsSL "$REPO_RAW/$f" -o "/opt/braccio-destro/$f"
+  chmod 644 "/opt/braccio-destro/$f"
+done
 install -d -m 750 -g braccio /etc/braccio-destro
 
 esc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }

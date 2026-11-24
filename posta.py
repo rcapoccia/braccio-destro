@@ -27,6 +27,10 @@ import urllib.error
 import urllib.request
 from email.message import EmailMessage
 
+import mistral
+import pratiche
+import questionari
+
 # --- Configurazione (da /etc/braccio-destro/posta.env) ---------------------
 IMAP_HOST = os.environ["IMAP_HOST"]
 IMAP_PORT = int(os.environ.get("IMAP_PORT", "993"))
@@ -99,7 +103,12 @@ Rispondi SOLO con un oggetto JSON con queste chiavi:
 "situazione" (1-2 frasi: chi chiede cosa a chi), "categoria" (una tra {", ".join(CATEGORIE)}),
 "priorita" ("alta"|"media"|"bassa"), "riassunto" (max 2 frasi), "serve_risposta" (true|false),
 "rispondi_a_tutti" (true se la conversazione coinvolge più persone che devono restare in copia),
-"bozza" (stringa, vuota se non serve), "da_verificare" (lista di stringhe)."""
+"bozza" (stringa, vuota se non serve), "da_verificare" (lista di stringhe),
+"questionario": se per rispondere Roberto deve mandare a una compagnia o agenzia un questionario compilato
+  o i dati di un'azienda cliente per un preventivo (es. polizza CAR per un'impresa edile), un oggetto
+  {{"compagnia": nome della compagnia destinataria (es. "ITAS"), "ramo": sigla del ramo (es. "CAR", "RCT", "Incendio"),
+   "azienda": nome dell'azienda cliente, "parola_chiave": la parola più distintiva del nome dell'azienda (es. "COMPASS")}};
+  altrimenti null."""
 
 
 # --- Stato -------------------------------------------------------------------
@@ -203,8 +212,12 @@ def chiedi_a_mistral(msg, corpo, allegati, forza=False):
     else:
         ruolo = "non compare tra i destinatari (inoltro, lista o copia nascosta)"
     nuovo, storico = separa_storico(corpo)
+    dominio = (email.utils.parseaddr(msg.get("From", ""))[1].rsplit("@", 1) + [""])[1].lower()
+    compagnia = questionari.compagnie_note().get(dominio)
     contenuto = (
-        f"Mittente: {msg.get('From', '')}\nA: {a}\nCc: {cc}\n"
+        f"Mittente: {msg.get('From', '')}"
+        + (f" (lavora per la compagnia {compagnia})" if compagnia else "") + "\n"
+        f"A: {a}\nCc: {cc}\n"
         f"Roberto ({IMAP_USER}) è: {ruolo}\n"
         f"Data: {msg.get('Date', '')}\nOggetto: {msg.get('Subject', '')}\n"
         f"Allegati: {', '.join(allegati) if allegati else 'nessuno'}\n\n"
@@ -215,54 +228,17 @@ def chiedi_a_mistral(msg, corpo, allegati, forza=False):
         contenuto += ("\n\nNOTA: Roberto ha chiesto esplicitamente una bozza di risposta per questa mail. "
                       "serve_risposta deve essere true. Scrivi la risposta più utile possibile; "
                       "dove manca qualcosa usa [DA COMPLETARE: ...].")
-    richiesta = {
-        "model": MISTRAL_MODEL,
-        "temperature": 0.2,
-        "response_format": {"type": "json_object"},
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": contenuto},
-        ],
-    }
-    req = urllib.request.Request(
-        MISTRAL_URL,
-        data=json.dumps(richiesta).encode(),
-        headers={
-            "Authorization": f"Bearer {MISTRAL_API_KEY}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        },
-    )
-    for tentativo in range(3):
-        try:
-            with urllib.request.urlopen(req, timeout=120) as r:
-                risposta = json.load(r)
-            testo = risposta["choices"][0]["message"]["content"]
-            dati = json.loads(testo)
-            if dati.get("categoria") not in CATEGORIE:
-                dati["categoria"] = "altro"
-            return dati
-        except urllib.error.HTTPError as e:
-            if e.code == 429:
-                # Tetto di spesa o limite di frequenza raggiunto: ci fermiamo.
-                raise TettoRaggiunto() from e
-            if e.code in (500, 502, 503, 504) and tentativo < 2:
-                time.sleep(10 * (tentativo + 1))
-                continue
-            raise
-        except (urllib.error.URLError, TimeoutError):
-            if tentativo < 2:
-                time.sleep(10 * (tentativo + 1))
-                continue
-            raise
+    dati = mistral.chat_json(SYSTEM_PROMPT, contenuto)
+    if dati.get("categoria") not in CATEGORIE:
+        dati["categoria"] = "altro"
+    return dati
 
 
-class TettoRaggiunto(Exception):
-    pass
+TettoRaggiunto = mistral.TettoRaggiunto
 
 
 # --- Bozza -------------------------------------------------------------------
-def crea_bozza(originale, dati):
+def crea_bozza(originale, dati, allegati=()):
     bozza = EmailMessage()
     rispondi_a = originale.get("Reply-To") or originale.get("From", "")
     oggetto = originale.get("Subject", "") or ""
@@ -289,7 +265,20 @@ def crea_bozza(originale, dati):
     bozza["X-Braccio-Destro-Categoria"] = dati.get("categoria", "altro")
     bozza["X-Braccio-Destro-Priorita"] = dati.get("priorita", "media")
     bozza.set_content(dati.get("bozza", "").strip() + "\n")
+    for nome, contenuto in allegati:
+        bozza.add_attachment(contenuto, maintype="application", subtype="pdf", filename=nome)
     return bozza
+
+
+def nota_interna(oggetto, testo):
+    nota = EmailMessage()
+    nota["From"] = f"Braccio destro <{IMAP_USER}>"
+    nota["To"] = IMAP_USER
+    nota["Subject"] = "[Braccio destro] " + oggetto
+    nota["Date"] = email.utils.formatdate(localtime=True)
+    nota["Message-ID"] = email.utils.make_msgid(domain="braccio-destro.local")
+    nota.set_content(testo + "\n")
+    return nota
 
 
 def segna_categoria(imap, uid, dati):
@@ -322,16 +311,52 @@ def segna_gestito(stato, msg):
         del gestiti[:-500]
 
 
-def elabora(imap, bozze, uid_s, msg, forza=False):
+def gestisci_pratica(imap, msg, dati, corpo, cartella):
+    """Pratica questionario: compila il modulo della compagnia o, in riserva, allega i documenti trovati."""
+    info = dati["questionario"]
+    documenti = pratiche.cerca_documenti(imap, msg, info["parola_chiave"], cartella)
+    nome_modulo = questionari.trova_modulo(info.get("compagnia", ""), info.get("ramo", ""))
+    risultato, allegati = None, []
+    if documenti["questionario"] and nome_modulo:
+        risultato = pratiche.compila(msg, nome_modulo, documenti, corpo)
+        allegati.append((risultato["nome_pdf"], risultato["pdf"]))
+        if risultato["bozza"].strip():
+            dati["bozza"] = risultato["bozza"]
+    elif documenti["questionario"]:
+        allegati.append((documenti["questionario"]["nome"], documenti["questionario"]["dati"]))
+    if documenti["visura"]:
+        allegati.append((documenti["visura"]["nome"], documenti["visura"]["dati"]))
+    nota = pratiche.nota_per_roberto(info, documenti, risultato, msg.get("Subject", ""))
+    imap.append("INBOX", "", imaplib.Time2Internaldate(time.time()),
+                nota_interna(f"Questionario {info.get('compagnia', '')} {info.get('azienda', '')}", nota)
+                .as_bytes(policy=email.policy.SMTP))
+    esito = ("modulo compilato" if risultato else "riserva: documenti allegati" if allegati
+             else "documenti non trovati")
+    return allegati, esito
+
+
+def elabora(imap, bozze, uid_s, msg, forza=False, cartella="INBOX"):
     corpo, allegati = testo_da_messaggio(msg)
     dati = chiedi_a_mistral(msg, corpo, allegati, forza=forza)
     if not forza:
         segna_categoria(imap, uid_s, dati)
+    allegati_bozza, esito_pratica = [], ""
+    q = dati.get("questionario")
+    if isinstance(q, dict) and q.get("parola_chiave") and (dati.get("serve_risposta") or forza):
+        try:
+            allegati_bozza, esito_pratica = gestisci_pratica(imap, msg, dati, corpo, cartella)
+        except mistral.TettoRaggiunto:
+            raise
+        except Exception as e:
+            log.error("Pratica questionario non riuscita: %s %s", type(e).__name__, str(e)[:150])
+            esito_pratica = "pratica non riuscita"
     if (dati.get("serve_risposta") or forza) and dati.get("bozza", "").strip():
-        bozza = crea_bozza(msg, dati)
+        bozza = crea_bozza(msg, dati, allegati_bozza)
         imap.append(bozze, "(\\Draft)", imaplib.Time2Internaldate(time.time()),
                     bozza.as_bytes(policy=email.policy.SMTP))
         esito = "bozza creata" + (" (richiesta da Roberto)" if forza else "")
+        if esito_pratica:
+            esito += f" [questionario: {esito_pratica}]"
     else:
         esito = "nessuna risposta necessaria"
     log.info("UID %s: categoria=%s priorita=%s -> %s",
@@ -390,7 +415,7 @@ def giro_forzate(imap, bozze, stato):
         uid_s = u.decode()
         msg = leggi(imap, uid_s)
         if msg is not None:
-            elabora(imap, bozze, uid_s, msg, forza=True)
+            elabora(imap, bozze, uid_s, msg, forza=True, cartella=cartella)
             segna_gestito(stato, msg)
             salva_stato(stato)
         if sposta:
