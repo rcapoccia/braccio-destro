@@ -39,7 +39,7 @@ id braccio >/dev/null 2>&1 || useradd --system --home /var/lib/braccio-destro --
 install -d -o braccio -g braccio -m 700 /var/lib/braccio-destro
 install -d -m 755 /opt/braccio-destro
 install -d -m 755 /opt/braccio-destro/moduli
-for f in posta.py mistral.py pratiche.py questionari.py istruzioni.py moduli/itas_car.json moduli/itas_car.pdf moduli/compagnie.json; do
+for f in posta.py mistral.py pratiche.py questionari.py istruzioni.py ricerca.py moduli/itas_car.json moduli/itas_car.pdf moduli/compagnie.json; do
   curl -fsSL "$REPO_RAW/$f" -o "/opt/braccio-destro/$f"
   chmod 644 "/opt/braccio-destro/$f"
 done

@@ -14,6 +14,7 @@ import re
 import mistral
 import pratiche
 import questionari
+import ricerca
 
 log = logging.getLogger("posta")
 
@@ -49,8 +50,16 @@ Frasi brevi e dirette, elenchi con il trattino, nessun burocratese (vietati: "ho
 "resto a disposizione", "cordiali saluti"). Chiusura: "Grazie e ciao" o "A presto". Firma: "Roberto".
 Se la mail parla di allegati, citali in modo naturale ("ti giro in allegato...").
 
+AZIONE: di solito Roberto vuole una mail da mandare a qualcuno ("azione": "bozza").
+Se invece chiede di CERCARE o RACCOGLIERE documenti per sé (es. "cerca le polizze e i preventivi di E-ALL",
+"trovami la visura di Rossi"), usa "azione": "ricerca" e compila "ricerca":
+{"parola_chiave": la parola più distintiva del cliente così come comparirebbe nelle mail (es. "E-ALL"),
+ "tipi": tipi di documento richiesti tra "polizza", "preventivo", "quietanza", "appendice", "questionario", "visura",
+ "sinistro", "contratto", "fattura" (lista vuota se vuole tutti i documenti), "descrizione": la richiesta in breve}.
+In quel caso "a", "cc", "bozza", "allegati" restano vuoti.
+
 Rispondi SOLO in JSON:
-{"a": [indirizzi], "cc": [indirizzi], "oggetto": testo (di solito "R: " + oggetto originale),
+{"azione": "bozza" | "ricerca", "ricerca": {...} o null, "a": [indirizzi], "cc": [indirizzi], "oggetto": testo (di solito "R: " + oggetto originale),
  "bozza": testo della mail, "allegati": [{"tipo": ..., "compagnia": ..., "ramo": ..., "descrizione": ..., "parola_chiave": ...}],
  "dubbi": [cose che Roberto deve controllare]}"""
 
@@ -71,6 +80,9 @@ def esegui(imap, msg, corpo, cartella, indirizzo_roberto):
     utente = (f"OGGETTO: {msg.get('Subject', '')}\n\n=== ISTRUZIONE DI ROBERTO ===\n{istruzione[:3000]}\n\n"
               f"=== MAIL INOLTRATA ===\n{inoltrata[:14000] or '(nessuna)'}")
     piano = mistral.chat_json(SISTEMA, utente)
+    r = piano.get("ricerca")
+    if piano.get("azione") == "ricerca" and isinstance(r, dict) and r.get("parola_chiave"):
+        return {"azione": "ricerca"}, ricerca.esegui(imap, r, cartella), None
 
     testo_completo = corpo + "\n" + msg.get("Subject", "")
     a = [x for x in _indirizzi_validi(piano.get("a"), testo_completo) if x != indirizzo_roberto.lower()]

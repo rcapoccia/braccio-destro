@@ -19,6 +19,7 @@ import html
 import imaplib
 import json
 import logging
+import mimetypes
 import os
 import re
 import sys
@@ -272,7 +273,7 @@ def crea_bozza(originale, dati, allegati=()):
     return bozza
 
 
-def nota_interna(oggetto, testo):
+def nota_interna(oggetto, testo, allegati=()):
     nota = EmailMessage()
     nota["From"] = f"Braccio destro <{IMAP_USER}>"
     nota["To"] = IMAP_USER
@@ -280,6 +281,9 @@ def nota_interna(oggetto, testo):
     nota["Date"] = email.utils.formatdate(localtime=True)
     nota["Message-ID"] = email.utils.make_msgid(domain="braccio-destro.local")
     nota.set_content(testo + "\n")
+    for nome, contenuto in allegati:
+        tipo = (mimetypes.guess_type(nome)[0] or "application/octet-stream").split("/", 1)
+        nota.add_attachment(contenuto, maintype=tipo[0], subtype=tipo[1], filename=nome)
     return nota
 
 
@@ -374,6 +378,12 @@ def leggi(imap, uid_s):
 def esegui_istruzione(imap, bozze, uid_s, msg):
     corpo, _ = testo_da_messaggio(msg)
     dati, allegati, nota = istruzioni.esegui(imap, msg, corpo, "INBOX", IMAP_USER)
+    if dati.get("azione") == "ricerca":
+        oggetto, testo, documenti = allegati
+        imap.append("INBOX", "", imaplib.Time2Internaldate(time.time()),
+                    nota_interna(oggetto, testo, documenti).as_bytes(policy=email.policy.SMTP))
+        log.info("UID %s: ricerca eseguita -> nota con %d allegati", uid_s, len(documenti))
+        return
     bozza = EmailMessage()
     bozza["From"] = IMAP_USER
     bozza["To"] = ", ".join(dati["a"])
