@@ -203,7 +203,7 @@ async function mostraVista(nome) {
   try {
     if (nome === "bozze") await caricaBozze();
     if (nome === "posta") await caricaPosta();
-    if (nome === "collegamenti") await caricaDispositivi();
+    if (nome === "collegamenti") { await caricaCollegamenti(); await caricaDispositivi(); }
     if (nome === "chat") scorriGiu();
   } catch (e) { $("#vista-" + nome).append(el("p", "errore", e.message)); }
 }
@@ -249,6 +249,35 @@ async function caricaPosta() {
     };
     box.append(v);
   });
+}
+
+async function caricaCollegamenti() {
+  const box = $("#elenco-collegamenti");
+  const lista = await api("/api/collegamenti");
+  box.replaceChildren(...lista.map(c => {
+    const s = el("div", "scheda");
+    s.append(el("h3", "", c.nome));
+    s.append(el("p", "piccolo", c.collegato_il ? "Login fatto il " + c.collegato_il : "Non ancora collegato"));
+    const riga = el("div", "riga");
+    const apri = el("button", "primario", c.collegato_il ? "Rifai il login" : "Collega");
+    const fatto = el("button", "", "Ho finito");
+    fatto.classList.toggle("nascosto", !c.aperto);
+    apri.onclick = async () => {
+      apri.disabled = true;
+      const finestra = window.open("", "_blank");
+      try {
+        const r = await api("/api/collegamenti/" + c.id + "/apri", { method: "POST" });
+        setTimeout(() => { if (finestra) finestra.location = r.schermo; else location.href = r.schermo; }, 1500);
+        fatto.classList.remove("nascosto");
+        s.append(el("p", "piccolo", "Si apre lo schermo del server: fai il login come al solito, poi torna qui e tocca \"Ho finito\". Si chiude da solo dopo 20 minuti."));
+      } catch (e) { if (finestra) finestra.close(); alert(e.message); }
+      finally { apri.disabled = false; }
+    };
+    fatto.onclick = async () => { await api("/api/collegamenti/" + c.id + "/fatto", { method: "POST" }); caricaCollegamenti(); };
+    riga.append(fatto, apri);
+    s.append(riga);
+    return s;
+  }));
 }
 
 async function caricaDispositivi() {

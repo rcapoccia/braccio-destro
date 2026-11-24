@@ -24,3 +24,10 @@ Aggiornamento: `bash <(curl -fsSL https://raw.githubusercontent.com/rcapoccia/br
 - Una mail parte solo quando si tocca "Approva e invia" su una bozza; nessun invio automatico.
 - `installa-web.sh`: installazione una tantum; `braccio-codice`: codice monouso per attivare un nuovo dispositivo.
 - Aggiornamento automatico dal ramo `produzione` ogni 2 minuti (`auto-aggiorna.sh`, elenco in `file-elenco.txt`).
+
+## Collegamenti (Navisio, intermediari.ai)
+
+- Sezione "Collegamenti" della pagina: apre un browser sul server (schermo virtuale Xvfb + noVNC), visibile solo dopo
+  l'accesso con Face ID (Caddy `forward_auth`). Il login lo fa Roberto; il salvataggio delle password è disattivato,
+  restano solo i cookie di sessione in `/var/lib/braccio-destro/browser/`.
+- `sistema.sh`: configurazione di sistema, rilanciata dall'aggiornamento automatico quando cambia.

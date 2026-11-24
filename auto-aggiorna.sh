@@ -7,6 +7,17 @@ DEST=/opt/braccio-destro
 STATO=/var/lib/braccio-destro-aggiornamenti
 
 install -d -m 700 "$STATO"
+
+# Configurazione di sistema: la rilancia quando sistema.sh cambia (anche se il codice è già aggiornato).
+esegui_sistema() {
+  [[ -f "$DEST/sistema.sh" && -x "$DEST/venv/bin/pip" ]] || return 0
+  local h; h=$(sha256sum "$DEST/sistema.sh" | cut -d' ' -f1)
+  if [[ "$h" != "$(cat "$STATO/sistema" 2>/dev/null || true)" ]]; then
+    bash "$DEST/sistema.sh" && echo "$h" > "$STATO/sistema"
+  fi
+}
+esegui_sistema || echo "Configurazione di sistema non riuscita: riprovo al prossimo giro."
+
 SHA=$(curl -fsS "https://api.github.com/repos/$REPO/commits/produzione" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')
 [[ "$SHA" == "$(cat "$STATO/versione" 2>/dev/null || true)" ]] && exit 0
 
@@ -35,6 +46,7 @@ install -m 755 "$TMP/braccio-codice.sh" /usr/local/sbin/braccio-codice
 if [[ -x "$DEST/venv/bin/pip" && "$REQ_PRIMA" != "$(sha256sum "$DEST/requirements-web.txt" | cut -d' ' -f1)" ]]; then
   "$DEST/venv/bin/pip" install -q -r "$DEST/requirements-web.txt"
 fi
-systemctl try-restart braccio-web.service || true
 echo "$SHA" > "$STATO/versione"
+systemctl try-restart braccio-web.service || true
+esegui_sistema || echo "Configurazione di sistema non riuscita: riprovo al prossimo giro."
 echo "Aggiornato alla versione $SHA."

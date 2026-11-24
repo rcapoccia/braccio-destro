@@ -568,5 +568,101 @@ def dispositivi():
     return [{"nome": c["nome"], "creata": c["creata"]} for c in _leggi_json(FILE_CREDENZIALI, [])]
 
 
+# --- Collegamenti: browser sul server per i login (Navisio, intermediari.ai) ----------------
+PIATTAFORME = {
+    "navisio": {"nome": "Navisio", "url": "https://www.navisio.it"},
+    "intermediari": {"nome": "intermediari.ai", "url": "https://intermediari.ai"},
+}
+CARTELLA_BROWSER = os.environ.get("BROWSER_DATI", "/var/lib/braccio-destro/browser")
+FILE_COLLEGAMENTI = os.path.join(DATI, "collegamenti.json")
+browser_aperto = {"processo": None, "piattaforma": None, "scade": 0}
+
+
+def _chromium():
+    import glob
+    base = os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "/opt/braccio-destro/ms-playwright")
+    trovati = sorted(glob.glob(f"{base}/chromium-*/chrome-linux*/chrome"))
+    if not trovati:
+        raise HTTPException(503, "Il browser del server non è ancora installato: riprova tra qualche minuto.")
+    return trovati[-1]
+
+
+def _profilo(chiave):
+    """Profilo separato per piattaforma; il salvataggio delle password è disattivato (restano solo i cookie)."""
+    cartella = os.path.join(CARTELLA_BROWSER, chiave)
+    os.makedirs(os.path.join(cartella, "Default"), mode=0o700, exist_ok=True)
+    pref = os.path.join(cartella, "Default", "Preferences")
+    if not os.path.exists(pref):
+        with open(pref, "w") as f:
+            json.dump({"credentials_enable_service": False, "profile": {"password_manager_enabled": False},
+                       "autofill": {"profile_enabled": False, "credit_card_enabled": False}}, f)
+    return cartella
+
+
+def chiudi_browser():
+    p = browser_aperto["processo"]
+    if p and p.poll() is None:
+        p.terminate()
+        try:
+            p.wait(10)
+        except Exception:
+            p.kill()
+    browser_aperto.update({"processo": None, "piattaforma": None, "scade": 0})
+
+
+def _sorveglia_browser():
+    while True:
+        time.sleep(30)
+        if browser_aperto["processo"] and browser_aperto["scade"] < time.time():
+            chiudi_browser()
+
+
+threading.Thread(target=_sorveglia_browser, daemon=True).start()
+
+
+@app.get("/api/verifica")
+def verifica():
+    """Usata da Caddy per lasciar vedere lo schermo del server solo a chi è entrato con Face ID."""
+    return {"ok": True}
+
+
+@app.get("/api/collegamenti")
+def collegamenti():
+    stato_c = _leggi_json(FILE_COLLEGAMENTI, {})
+    aperto = browser_aperto["piattaforma"] if browser_aperto["processo"] and browser_aperto["processo"].poll() is None else None
+    return [{"id": k, "nome": v["nome"], "collegato_il": stato_c.get(k), "aperto": aperto == k}
+            for k, v in PIATTAFORME.items()]
+
+
+@app.post("/api/collegamenti/{chiave}/apri")
+def apri_collegamento(chiave: str):
+    if chiave not in PIATTAFORME:
+        raise HTTPException(404, "Piattaforma sconosciuta.")
+    import subprocess
+    chiudi_browser()
+    with blocco:
+        browser_aperto["processo"] = subprocess.Popen(
+            [_chromium(), f"--user-data-dir={_profilo(chiave)}", "--no-first-run", "--no-default-browser-check",
+             "--no-sandbox", "--disable-sync", "--disable-features=PasswordManagerOnboarding,Translate",
+             "--window-position=0,0", "--window-size=600,1100", "--test-type", "--lang=it-IT", PIATTAFORME[chiave]["url"]],
+            env={**os.environ, "DISPLAY": os.environ.get("DISPLAY", ":99")},
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        browser_aperto.update({"piattaforma": chiave, "scade": time.time() + 20 * 60})
+    log.info("Browser aperto per il login: %s", chiave)
+    return {"ok": True, "schermo": "/schermo/vnc.html?autoconnect=1&resize=scale&path=schermo/websockify"}
+
+
+@app.post("/api/collegamenti/{chiave}/fatto")
+def fine_collegamento(chiave: str):
+    if chiave not in PIATTAFORME:
+        raise HTTPException(404, "Piattaforma sconosciuta.")
+    chiudi_browser()
+    with blocco:
+        stato_c = _leggi_json(FILE_COLLEGAMENTI, {})
+        stato_c[chiave] = time.strftime("%d/%m/%Y %H:%M")
+        _scrivi_json(FILE_COLLEGAMENTI, stato_c)
+    return {"ok": True}
+
+
 # --- Pagina -----------------------------------------------------------------------------
 app.mount("/", StaticFiles(directory=os.path.join(QUI, "static"), html=True), name="pagina")

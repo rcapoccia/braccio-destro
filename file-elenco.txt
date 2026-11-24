@@ -14,3 +14,5 @@ web/static/app.js
 web/static/stile.css
 web/static/manifest.json
 web/static/icona.png
+schermo.sh
+sistema.sh
