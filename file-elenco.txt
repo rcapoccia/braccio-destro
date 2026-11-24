@@ -16,3 +16,5 @@ web/static/manifest.json
 web/static/icona.png
 schermo.sh
 sistema.sh
+anonimizza.py
+secondo_parere.py

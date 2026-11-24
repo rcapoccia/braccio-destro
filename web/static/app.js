@@ -93,6 +93,7 @@ function disegnaMessaggio(v) {
     return;
   }
   if (v.tipo === "bozza") { box.append(schedaBozza(v)); return; }
+  if (v.tipo === "parere") { box.append(schedaParere(v)); return; }
   const m = el("div", "msg braccio" + (v.tipo === "errore" ? " errore-msg" : ""));
   if (v.titolo) m.append(el("span", "titolo-r", v.titolo));
   m.append(document.createTextNode(v.testo || ""));
@@ -153,6 +154,20 @@ function schedaBozza(v) {
   return n;
 }
 
+function schedaParere(v) {
+  const m = el("div", "msg braccio");
+  const blocco = (titolo, testo) => { if (!testo) return; m.append(el("span", "titolo-r", titolo)); m.append(el("div", "", testo)); m.append(el("br")); };
+  if (v.sintesi) blocco(v.concordano ? "In sintesi (Mistral e Grok concordano)" : "In sintesi (Mistral e Grok NON concordano)", v.sintesi);
+  if (v.differenze && v.differenze.length) blocco("Dove non concordano", v.differenze.map(x => "• " + x).join("\n"));
+  if (v.da_verificare && v.da_verificare.length) blocco("Da verificare", v.da_verificare.map(x => "• " + x).join("\n"));
+  blocco("Parere Mistral", v.mistral);
+  blocco("Parere Grok", v.grok);
+  if (v.inviato_a_grok) { const d = el("details"); d.append(el("summary", "piccolo", "Cosa è stato inviato a Grok (senza dati)"), el("div", "piccolo", v.inviato_a_grok)); m.append(d); }
+  if (v.nota) m.append(el("div", "nota", v.nota));
+  m.append(el("span", "ora", v.ora));
+  return m;
+}
+
 async function caricaChat() {
   const chat = await api("/api/chat");
   $("#messaggi").replaceChildren();
@@ -203,7 +218,7 @@ async function mostraVista(nome) {
   try {
     if (nome === "bozze") await caricaBozze();
     if (nome === "posta") await caricaPosta();
-    if (nome === "collegamenti") { await caricaCollegamenti(); await caricaDispositivi(); }
+    if (nome === "collegamenti") { await caricaCollegamenti(); await caricaGrok(); await caricaDispositivi(); }
     if (nome === "chat") scorriGiu();
   } catch (e) { $("#vista-" + nome).append(el("p", "errore", e.message)); }
 }
@@ -280,6 +295,11 @@ async function caricaCollegamenti() {
   }));
 }
 
+async function caricaGrok() {
+  const k = await api("/api/chiavi");
+  $("#stato-grok").textContent = k.grok ? "Collegato." : "Non collegato.";
+}
+
 async function caricaDispositivi() {
   const d = await api("/api/dispositivi");
   $("#elenco-dispositivi").replaceChildren(...d.map(x => el("div", "", "• " + x.nome + " (dal " + x.creata + ")")));
@@ -300,6 +320,15 @@ $("#esci").onclick = async () => { await api("/api/esci", { method: "POST" }).ca
 $$("nav button").forEach(b => b.onclick = () => mostraVista(b.dataset.vista));
 $$(".scorciatoie button").forEach(b => b.onclick = () => { $("#testo").value = b.dataset.testo; $("#testo").focus(); });
 $("#togli-contesto").onclick = togliContesto;
+$("#salva-grok").onclick = async () => {
+  const chiave = $("#chiave-grok").value.trim();
+  if (!chiave) { alert("Incolla prima la chiave."); return; }
+  try { await api("/api/chiavi/grok", { json: { chiave } }); $("#chiave-grok").value = ""; caricaGrok(); } catch (e) { alert(e.message); }
+};
+$("#togli-grok").onclick = async () => {
+  if (!confirm("Scollegare Grok?")) return;
+  await api("/api/chiavi/grok", { json: { chiave: "" } }).catch(e => alert(e.message)); caricaGrok();
+};
 $("#modulo").onsubmit = inviaIstruzione;
 $("#file").onchange = () => { $("#file-scelti").textContent = [...$("#file").files].map(f => "📎 " + f.name).join("  "); };
 $("#testo").oninput = e => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px"; };

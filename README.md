@@ -31,3 +31,10 @@ Aggiornamento: `bash <(curl -fsSL https://raw.githubusercontent.com/rcapoccia/br
   l'accesso con Face ID (Caddy `forward_auth`). Il login lo fa Roberto; il salvataggio delle password è disattivato,
   restano solo i cookie di sessione in `/var/lib/braccio-destro/browser/`.
 - `sistema.sh`: configurazione di sistema, rilanciata dall'aggiornamento automatico quando cambia.
+
+## Anonimizzatore e secondo parere
+
+- `anonimizza.py`: anonimizzazione locale (Microsoft Presidio + spaCy italiano) di nomi, aziende, codice fiscale,
+  partita IVA, IBAN, email, telefoni, targhe, indirizzi, numeri di polizza/sinistro. La mappa resta sul server.
+- `secondo_parere.py`: "Secondo parere: ..." in chat. Mistral riceve il testo originale; Grok solo il testo
+  anonimizzato e solo se xAI conferma la zero data retention (intestazione `x-zero-data-retention: true`).

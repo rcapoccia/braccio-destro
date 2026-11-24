@@ -6,3 +6,6 @@ cryptography==50.0.2
 pypdf==7.1.1
 reportlab==5.1.1
 playwright==1.65.2
+presidio-analyzer==2.2.366
+spacy==3.8.18
+it_core_news_md @ https://github.com/explosion/spacy-models/releases/download/it_core_news_md-3.8.0/it_core_news_md-3.8.0-py3-none-any.whl

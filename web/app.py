@@ -48,6 +48,7 @@ import istruzioni  # noqa: E402
 import mistral  # noqa: E402
 import posta  # noqa: E402
 import pratiche  # noqa: E402
+import secondo_parere  # noqa: E402
 
 DOMINIO = os.environ.get("WEB_DOMINIO", "braccio.stital.it")
 ORIGINE = f"https://{DOMINIO}"
@@ -336,7 +337,11 @@ async def nuova_istruzione(testo: str = Form(""), uid_mail: str = Form(""), file
     _salva_chat({"id": uuid.uuid4().hex, "chi": "roberto", "testo": testo, "ora": time.strftime("%d/%m %H:%M"),
                  "allegati": [n for n, _ in caricati], "mail": uid_mail or None})
     lavori[id_lavoro] = {"stato": "in corso"}
-    lavoratori.submit(_esegui, id_lavoro, testo, uid_mail, caricati)
+    m = re.match(r"(?is)^\s*secondo\s+parere\s*[:\-]?\s*(.+)$", testo)
+    if m:
+        lavoratori.submit(_esegui_parere, id_lavoro, m.group(1).strip(), uid_mail)
+    else:
+        lavoratori.submit(_esegui, id_lavoro, testo, uid_mail, caricati)
     return {"lavoro": id_lavoro}
 
 
@@ -403,6 +408,31 @@ def _esegui(id_lavoro, testo, uid_mail, caricati):
     finally:
         if imap:
             _chiudi(imap)
+    voce["ora"] = time.strftime("%d/%m %H:%M")
+    _salva_chat(voce)
+    lavori[id_lavoro] = {"stato": "fatto", "fine": time.time()}
+
+
+def _esegui_parere(id_lavoro, domanda, uid_mail):
+    voce = {"id": uuid.uuid4().hex, "chi": "braccio"}
+    try:
+        contesto = ""
+        if uid_mail:
+            imap = _imap()
+            try:
+                imap.select("INBOX", readonly=True)
+                originale = posta.leggi(imap, uid_mail)
+                if originale is not None:
+                    contesto, _ = posta.testo_da_messaggio(originale)
+            finally:
+                _chiudi(imap)
+        voce.update(secondo_parere.esegui(domanda, contesto))
+        log.info("Secondo parere eseguito (Grok: %s).", "sì" if "grok" in voce else "no")
+    except mistral.TettoRaggiunto:
+        voce.update({"tipo": "errore", "testo": "Mistral ha raggiunto il tetto di spesa o il limite di richieste."})
+    except Exception as e:
+        log.error("Secondo parere non riuscito: %s", type(e).__name__)
+        voce.update({"tipo": "errore", "testo": "Non sono riuscito a preparare il secondo parere. Riprova."})
     voce["ora"] = time.strftime("%d/%m %H:%M")
     _salva_chat(voce)
     lavori[id_lavoro] = {"stato": "fatto", "fine": time.time()}
@@ -650,6 +680,28 @@ def apri_collegamento(chiave: str):
         browser_aperto.update({"piattaforma": chiave, "scade": time.time() + 20 * 60})
     log.info("Browser aperto per il login: %s", chiave)
     return {"ok": True, "schermo": "/schermo/vnc.html?autoconnect=1&resize=scale&path=schermo/websockify"}
+
+
+@app.get("/api/chiavi")
+def stato_chiavi():
+    return {"grok": bool(secondo_parere.chiave_grok())}
+
+
+@app.post("/api/chiavi/grok")
+async def salva_chiave_grok(request: Request):
+    """La chiave si inserisce dalla pagina (HTTPS, dopo Face ID): resta solo sul server e non viene mai mostrata."""
+    chiave = ((await request.json()).get("chiave") or "").strip()
+    if chiave and not re.fullmatch(r"[A-Za-z0-9_\-]{20,200}", chiave):
+        raise HTTPException(400, "La chiave non sembra valida.")
+    with blocco:
+        chiavi = _leggi_json(secondo_parere.FILE_CHIAVI, {})
+        if chiave:
+            chiavi["grok"] = chiave
+        else:
+            chiavi.pop("grok", None)
+        _scrivi_json(secondo_parere.FILE_CHIAVI, chiavi)
+    log.info("Chiave Grok %s.", "salvata" if chiave else "rimossa")
+    return {"ok": True}
 
 
 @app.post("/api/collegamenti/{chiave}/fatto")
