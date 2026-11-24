@@ -29,6 +29,7 @@ from email.message import EmailMessage
 
 import mistral
 import pratiche
+import istruzioni
 import questionari
 
 # --- Configurazione (da /etc/braccio-destro/posta.env) ---------------------
@@ -42,6 +43,7 @@ MISTRAL_URL = os.environ.get("MISTRAL_URL", "https://api.eu.mistral.ai/v1/chat/c
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-large-2512")
 FIRMA = os.environ.get("FIRMA", "Roberto")
 STATE_FILE = os.environ.get("STATE_FILE", "/var/lib/braccio-destro/posta-state.json")
+MODALITA = os.environ.get("MODALITA", "istruzioni")   # "istruzioni" (solo su ordine di Roberto) o "automatica"
 MAX_MAIL_PER_GIRO = int(os.environ.get("MAX_MAIL_PER_GIRO", "30"))
 MAX_CARATTERI = 20000
 
@@ -369,6 +371,30 @@ def leggi(imap, uid_s):
     return email.message_from_bytes(grezzo, policy=email.policy.default) if grezzo else None
 
 
+def esegui_istruzione(imap, bozze, uid_s, msg):
+    corpo, _ = testo_da_messaggio(msg)
+    dati, allegati, nota = istruzioni.esegui(imap, msg, corpo, "INBOX", IMAP_USER)
+    bozza = EmailMessage()
+    bozza["From"] = IMAP_USER
+    bozza["To"] = ", ".join(dati["a"])
+    if dati["cc"]:
+        bozza["Cc"] = ", ".join(dati["cc"])
+    bozza["Subject"] = dati["oggetto"]
+    bozza["Date"] = email.utils.formatdate(localtime=True)
+    if dati.get("riferimento"):
+        bozza["In-Reply-To"] = dati["riferimento"]
+        bozza["References"] = dati["riferimento"]
+    bozza.set_content(dati["bozza"].strip() + "\n")
+    for nome, contenuto in allegati:
+        bozza.add_attachment(contenuto, maintype="application", subtype="pdf", filename=nome)
+    imap.append(bozze, "(\\Draft)", imaplib.Time2Internaldate(time.time()), bozza.as_bytes(policy=email.policy.SMTP))
+    if nota:
+        imap.append("INBOX", "", imaplib.Time2Internaldate(time.time()),
+                    nota_interna("Da controllare: " + dati["oggetto"], nota).as_bytes(policy=email.policy.SMTP))
+    log.info("UID %s: istruzione eseguita -> bozza creata con %d allegati%s",
+             uid_s, len(allegati), " + nota" if nota else "")
+
+
 def giro_inbox(imap, bozze, stato):
     imap.select("INBOX")
     uidvalidity = imap.untagged_responses.get("UIDVALIDITY", [b"0"])[0].decode()
@@ -389,12 +415,12 @@ def giro_inbox(imap, bozze, stato):
     for uid in nuove:
         uid_s = str(uid)
         msg = leggi(imap, uid_s)
-        salta = (
-            msg is None
-            or IMAP_USER.lower() in msg.get("From", "").lower()       # inviate da Roberto
-            or msg.get("Message-ID") in stato.get("gestiti", [])       # già gestite (es. tornate da AI-Rispondi)
-        )
-        if not salta:
+        if msg is None or msg.get("Message-ID") in stato.get("gestiti", []):
+            pass
+        elif istruzioni.e_istruzione(msg, IMAP_USER):
+            esegui_istruzione(imap, bozze, uid_s, msg)
+            segna_gestito(stato, msg)
+        elif MODALITA == "automatica" and IMAP_USER.lower() not in msg.get("From", "").lower():
             elabora(imap, bozze, uid_s, msg)
         stato["ultimo_uid"] = uid
         salva_stato(stato)
@@ -435,7 +461,6 @@ def giro():
         bozze = trova_cartella_bozze(imap)
         try:
             giro_inbox(imap, bozze, stato)
-            giro_forzate(imap, bozze, stato)
         except TettoRaggiunto:
             log.warning("Mistral ha rifiutato la richiesta (tetto di spesa o limite). Riprovo al prossimo giro.")
     finally:

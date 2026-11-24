@@ -68,27 +68,17 @@ def _cartella_inviata(imap):
     return None
 
 
-def cerca_documenti(imap, msg_corrente, parola_chiave, cartella_attuale):
-    """Trova il questionario compilato dal cliente e la visura dell'azienda (i più recenti)."""
-    trovati = {"questionario": None, "visura": None}
+def _candidati(imap, msg_corrente, parola_chiave, cartella_attuale):
+    """PDF pertinenti alla parola chiave: prima la mail attuale, poi la posta (arrivata e inviata), dal più recente."""
     chiave = parola_chiave.lower()
 
-    def esamina(m, origine):
+    def da_messaggio(m, origine):
         for nome, dati in _pdf_allegati(m):
-            if all(trovati.values()):
-                return
             testo = _testo_documento(nome, dati)
-            t = testo.lower()
-            if chiave not in t and chiave not in nome.lower():
-                continue
-            doc = {"nome": nome, "dati": dati, "testo": testo, "origine": origine}
-            if not trovati["visura"] and ("visura" in nome.lower() or
-                                          ("visura" in t and "registro delle imprese" in t)):
-                trovati["visura"] = doc
-            elif not trovati["questionario"] and "questionario" in t:
-                trovati["questionario"] = doc
+            if chiave in testo.lower() or chiave in nome.lower():
+                yield {"nome": nome, "dati": dati, "testo": testo, "origine": origine}
 
-    esamina(msg_corrente, "mail attuale")
+    yield from da_messaggio(msg_corrente, "mail attuale")
     dal = (datetime.date.today() - datetime.timedelta(days=GIORNI_RICERCA)).strftime("%d-%b-%Y")
     parola_ascii = re.sub(r"[^A-Za-z0-9 ]", "", parola_chiave).strip() or parola_chiave
     cartelle = ["INBOX"]
@@ -97,24 +87,53 @@ def cerca_documenti(imap, msg_corrente, parola_chiave, cartella_attuale):
         cartelle.append(inviata)
     try:
         for cartella in cartelle:
-            if all(trovati.values()):
-                break
             if imap.select(cartella, readonly=True)[0] != "OK":
                 continue
             typ, ris = imap.uid("SEARCH", None, "SINCE", dal, "TEXT", f'"{parola_ascii}"')
-            uids = (ris[0] or b"").split()[-MAX_MAIL_PER_CARTELLA:][::-1]   # dalla più recente
+            uids = (ris[0] or b"").split()[-MAX_MAIL_PER_CARTELLA:][::-1]
             for u in uids:
-                if all(trovati.values()):
-                    break
                 typ, parti = imap.uid("FETCH", u, "(BODY.PEEK[])")
                 grezzo = next((p[1] for p in parti if isinstance(p, tuple)), None)
                 if grezzo:
                     m = email.message_from_bytes(grezzo, policy=email.policy.default)
-                    data = m.get("Date", "")
-                    esamina(m, f"mail del {data[:16]} - {m.get('Subject', '')[:60]}")
+                    yield from da_messaggio(m, f"mail del {m.get('Date', '')[:16]} - {m.get('Subject', '')[:60]}")
     finally:
         imap.select(cartella_attuale)
+
+
+def cerca_documenti(imap, msg_corrente, parola_chiave, cartella_attuale):
+    """Trova il questionario compilato dal cliente e la visura dell'azienda (i più recenti)."""
+    trovati = {"questionario": None, "visura": None}
+    gen = _candidati(imap, msg_corrente, parola_chiave, cartella_attuale)
+    try:
+        for doc in gen:
+            t, n = doc["testo"].lower(), doc["nome"].lower()
+            if not trovati["visura"] and ("visura" in n or ("visura" in t and "registro delle imprese" in t)):
+                trovati["visura"] = doc
+            elif not trovati["questionario"] and "questionario" in t:
+                trovati["questionario"] = doc
+            if all(trovati.values()):
+                break
+    finally:
+        gen.close()
     return trovati
+
+
+PAROLE_VUOTE = {"di", "del", "della", "il", "la", "lo", "le", "i", "gli", "un", "una", "e", "per", "con", "da", "in"}
+
+
+def cerca_documento(imap, msg_corrente, parola_chiave, descrizione, cartella_attuale):
+    """Il documento più recente che riguarda la parola chiave e corrisponde alla descrizione (es. 'visura camerale')."""
+    parole = [w for w in re.findall(r"\w+", descrizione.lower()) if w not in PAROLE_VUOTE and len(w) > 2]
+    gen = _candidati(imap, msg_corrente, parola_chiave, cartella_attuale)
+    try:
+        for doc in gen:
+            testo = (doc["nome"] + " " + doc["testo"][:5000]).lower()
+            if not parole or any(w in testo for w in parole):
+                return doc
+    finally:
+        gen.close()
+    return None
 
 
 SISTEMA_COMPILA = """Sei l'assistente di Roberto Capoccia, broker assicurativo (Stile Italiano).

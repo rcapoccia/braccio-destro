@@ -1,16 +1,18 @@
 # Braccio destro – agente posta
 
-Agente per Stile Italiano: legge le nuove mail via IMAP, le classifica
-(clienti, compagnie, sinistri, scadenze, altro) con Mistral (endpoint UE,
-zero data retention) e salva una bozza di risposta nella cartella Bozze.
+Agente per Stile Italiano. Lavora **su istruzione di Roberto**:
 
-- Non invia email: non usa SMTP.
-- Legge senza segnare le mail come lette.
-- Non salva il contenuto delle mail: tiene solo il numero dell'ultima mail letta.
-- Nessuna password è contenuta in questo archivio: si inseriscono sul server durante l'installazione.
+1. Roberto inoltra una mail a se stesso con l'oggetto che inizia per **"AI:"** e scrive in cima cosa fare
+   (es. "AI: rispondi allegando il questionario ITAS compilato e la visura dell'azienda").
+2. Entro 5 minuti l'agente prepara la **bozza** (destinatari, testo nello stile di Roberto, allegati) nella cartella Bozze.
+   Cerca i documenti nella posta e compila i moduli delle compagnie già mappati (`moduli/`).
+3. Se c'è qualcosa da controllare, lascia una **nota interna** "[Braccio destro]" nella posta in arrivo.
 
-## Installazione (Ubuntu 24.04, come root)
+- Non invia email: non usa SMTP. Ogni bozza la rivede e la invia Roberto.
+- Le altre mail non vengono lette dall'AI.
+- Mistral (endpoint UE, zero data retention). Nessun documento salvato sul server.
+- Nessuna password in questo archivio: si inseriscono sul server durante l'installazione.
 
-```
-bash <(curl -fsSL https://raw.githubusercontent.com/rcapoccia/braccio-destro/main/install.sh)
-```
+Installazione (Ubuntu 24.04, root): `bash <(curl -fsSL https://raw.githubusercontent.com/rcapoccia/braccio-destro/main/install.sh)`
+
+Aggiornamento: `bash <(curl -fsSL https://raw.githubusercontent.com/rcapoccia/braccio-destro/main/aggiorna.sh)`
