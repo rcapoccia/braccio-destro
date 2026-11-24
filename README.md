@@ -32,9 +32,13 @@ Aggiornamento: `bash <(curl -fsSL https://raw.githubusercontent.com/rcapoccia/br
   restano solo i cookie di sessione in `/var/lib/braccio-destro/browser/`.
 - `sistema.sh`: configurazione di sistema, rilanciata dall'aggiornamento automatico quando cambia.
 
-## Anonimizzatore e secondo parere
+## Esperto, biblioteca e ciclo di revisione
 
-- `anonimizza.py`: anonimizzazione locale (Microsoft Presidio + spaCy italiano) di nomi, aziende, codice fiscale,
-  partita IVA, IBAN, email, telefoni, targhe, indirizzi, numeri di polizza/sinistro. La mappa resta sul server.
-- `secondo_parere.py`: "Secondo parere: ..." in chat. Mistral riceve il testo originale; Grok solo il testo
-  anonimizzato e solo se xAI conferma la zero data retention (intestazione `x-zero-data-retention: true`).
+- `biblioteca.py`: testi ufficiali (CAP, Reg. IVASS 40 e 41, Provv. 163/2025, Reg. ISVAP 24/2008, Codice civile
+  artt. 1882-1932, prevenzione incendi, guide NIST/HSE) + materiali caricati dalla pagina. Brani indicizzati con
+  `mistral-embed` (UE), archivio SQLite sul server. Si carica da sola al primo avvio.
+- `esperto.py`: "Esperto: ..." in chat. Risposta di Mistral basata solo sui brani, con citazioni; poi un revisore
+  indipendente (Scaleway, Parigi, testo anonimizzato; in mancanza Mistral) controlla e, se serve, Mistral corregge
+  (massimo 2 giri).
+- `anonimizza.py`: anonimizzazione locale (Microsoft Presidio + spaCy italiano) prima di qualunque invio a
+  fornitori diversi da Mistral.

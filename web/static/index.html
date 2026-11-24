@@ -41,6 +41,7 @@
     <button data-vista="chat" class="attivo">Chat</button>
     <button data-vista="bozze">Bozze <span id="num-bozze"></span></button>
     <button data-vista="posta">Posta</button>
+    <button data-vista="biblioteca">Biblioteca</button>
     <button data-vista="collegamenti">Collegamenti</button>
   </nav>
 
@@ -53,15 +54,24 @@
       <p class="aiuto">Tocca una mail per lavorarci: torni in chat e scrivi cosa fare.</p>
       <div id="elenco-posta"></div>
     </div>
+    <div id="vista-biblioteca" class="vista nascosto">
+      <p class="aiuto">Le risposte dell'esperto si basano su questi testi e li citano. Carica qui condizioni di polizza, corsi e appunti: restano sul tuo server.</p>
+      <div class="scheda">
+        <input type="file" id="file-biblioteca" multiple accept=".pdf,.docx,.txt,.md,.html">
+        <div class="riga"><button id="aggiorna-ufficiali" class="leggero">Riscarica testi ufficiali</button><button id="carica-biblioteca" class="primario">Carica</button></div>
+        <p id="esito-biblioteca" class="piccolo"></p>
+      </div>
+      <div id="elenco-biblioteca"></div>
+    </div>
     <div id="vista-collegamenti" class="vista nascosto">
       <p class="aiuto">Fai tu il login una volta sola: il braccio destro poi usa il collegamento per chiedere un secondo parere. Le password restano tue: non vengono salvate.</p>
       <div id="elenco-collegamenti"></div>
       <div class="scheda">
-        <h3>Grok (secondo parere)</h3>
-        <p class="piccolo" id="stato-grok"></p>
-        <p class="piccolo">A Grok vanno solo testi senza nomi, codici fiscali, partite IVA e indirizzi: li toglie il server prima dell'invio. Se xAI non conferma la zero data retention, la risposta viene scartata.</p>
-        <input id="chiave-grok" type="password" autocomplete="off" placeholder="Incolla qui la chiave API di xAI">
-        <div class="riga"><button id="togli-grok" class="leggero">Scollega</button><button id="salva-grok" class="primario">Salva chiave</button></div>
+        <h3>Revisore europeo (Scaleway, Parigi)</h3>
+        <p class="piccolo" id="stato-scaleway"></p>
+        <p class="piccolo">Un secondo modello, diverso da Mistral, ricontrolla le risposte dell'esperto. Scaleway è un'azienda francese: non conserva né legge i testi. Gli arrivano comunque senza nomi né codici. Senza chiave il controllo lo fa Mistral.</p>
+        <input id="chiave-scaleway" type="password" autocomplete="off" placeholder="Incolla qui la chiave segreta di Scaleway">
+        <div class="riga"><button id="togli-scaleway" class="leggero">Scollega</button><button id="salva-scaleway" class="primario">Salva chiave</button></div>
       </div>
       <div class="scheda">
         <h3>Dispositivi autorizzati</h3>
@@ -77,7 +87,7 @@
       <button data-testo="Cerca nella posta polizze e preventivi di ">Cerca documenti</button>
       <button data-testo="Compila il questionario ">Compila questionario</button>
       <button data-testo="Rispondi a questa mail: ">Rispondi</button>
-      <button data-testo="Secondo parere: ">Secondo parere</button>
+      <button data-testo="Esperto: ">Chiedi all'esperto</button>
     </div>
     <form id="modulo">
       <label class="graffetta" title="Allega"><input type="file" id="file" multiple hidden>📎</label>

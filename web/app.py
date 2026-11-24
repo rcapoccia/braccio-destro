@@ -48,7 +48,8 @@ import istruzioni  # noqa: E402
 import mistral  # noqa: E402
 import posta  # noqa: E402
 import pratiche  # noqa: E402
-import secondo_parere  # noqa: E402
+import biblioteca  # noqa: E402
+import esperto  # noqa: E402
 
 DOMINIO = os.environ.get("WEB_DOMINIO", "braccio.stital.it")
 ORIGINE = f"https://{DOMINIO}"
@@ -337,7 +338,7 @@ async def nuova_istruzione(testo: str = Form(""), uid_mail: str = Form(""), file
     _salva_chat({"id": uuid.uuid4().hex, "chi": "roberto", "testo": testo, "ora": time.strftime("%d/%m %H:%M"),
                  "allegati": [n for n, _ in caricati], "mail": uid_mail or None})
     lavori[id_lavoro] = {"stato": "in corso"}
-    m = re.match(r"(?is)^\s*secondo\s+parere\s*[:\-]?\s*(.+)$", testo)
+    m = re.match(r"(?is)^\s*(?:secondo\s+parere|esperto|chiedi\s+all'esperto|domanda)\s*[:\-]\s*(.+)$", testo)
     if m:
         lavoratori.submit(_esegui_parere, id_lavoro, m.group(1).strip(), uid_mail)
     else:
@@ -426,8 +427,8 @@ def _esegui_parere(id_lavoro, domanda, uid_mail):
                     contesto, _ = posta.testo_da_messaggio(originale)
             finally:
                 _chiudi(imap)
-        voce.update(secondo_parere.esegui(domanda, contesto))
-        log.info("Secondo parere eseguito (Grok: %s).", "sì" if "grok" in voce else "no")
+        voce.update(esperto.chiedi(domanda, contesto))
+        log.info("Domanda all'esperto eseguita (revisore: %s).", voce.get("revisore"))
     except mistral.TettoRaggiunto:
         voce.update({"tipo": "errore", "testo": "Mistral ha raggiunto il tetto di spesa o il limite di richieste."})
     except Exception as e:
@@ -684,24 +685,102 @@ def apri_collegamento(chiave: str):
 
 @app.get("/api/chiavi")
 def stato_chiavi():
-    return {"grok": bool(secondo_parere.chiave_grok())}
+    return {"scaleway": bool(esperto.chiave_scaleway())}
 
 
-@app.post("/api/chiavi/grok")
-async def salva_chiave_grok(request: Request):
+@app.post("/api/chiavi/scaleway")
+async def salva_chiave_scaleway(request: Request):
     """La chiave si inserisce dalla pagina (HTTPS, dopo Face ID): resta solo sul server e non viene mai mostrata."""
     chiave = ((await request.json()).get("chiave") or "").strip()
     if chiave and not re.fullmatch(r"[A-Za-z0-9_\-]{20,200}", chiave):
         raise HTTPException(400, "La chiave non sembra valida.")
     with blocco:
-        chiavi = _leggi_json(secondo_parere.FILE_CHIAVI, {})
+        chiavi = _leggi_json(esperto.FILE_CHIAVI, {})
         if chiave:
-            chiavi["grok"] = chiave
+            chiavi["scaleway"] = chiave
         else:
-            chiavi.pop("grok", None)
-        _scrivi_json(secondo_parere.FILE_CHIAVI, chiavi)
-    log.info("Chiave Grok %s.", "salvata" if chiave else "rimossa")
+            chiavi.pop("scaleway", None)
+        chiavi.pop("grok", None)
+        _scrivi_json(esperto.FILE_CHIAVI, chiavi)
+    esperto._modello_scelto.clear()
+    log.info("Chiave Scaleway %s.", "salvata" if chiave else "rimossa")
     return {"ok": True}
+
+
+# --- Biblioteca -----------------------------------------------------------------------
+stato_biblioteca = {"lavoro": None}
+
+
+def _lavora_biblioteca(funzione, *argomenti):
+    stato_biblioteca["lavoro"] = "in corso"
+    try:
+        stato_biblioteca["lavoro"] = funzione(*argomenti)
+    except mistral.TettoRaggiunto:
+        stato_biblioteca["lavoro"] = ["Mistral ha raggiunto il tetto di spesa: riprova più tardi."]
+    except Exception as e:
+        log.error("Biblioteca: errore %s", type(e).__name__)
+        stato_biblioteca["lavoro"] = [f"Errore: {type(e).__name__}"]
+
+
+def _carica_file(file):
+    esiti = []
+    for nome, dati in file:
+        try:
+            _, n = biblioteca.aggiungi_file(nome, dati)
+            esiti.append(f"{nome}: {n} brani")
+        except Exception as e:
+            esiti.append(f"{nome}: NON caricato ({type(e).__name__})")
+    return esiti
+
+
+@app.get("/api/biblioteca")
+def elenco_biblioteca():
+    lavoro = stato_biblioteca["lavoro"]
+    return {"fonti": biblioteca.elenco(), "in_corso": lavoro == "in corso",
+            "esito": lavoro if isinstance(lavoro, list) else None}
+
+
+@app.post("/api/biblioteca")
+async def carica_biblioteca(file: list[UploadFile] = File(default=[])):
+    if stato_biblioteca["lavoro"] == "in corso":
+        raise HTTPException(409, "Sto già caricando: aspetta che finisca.")
+    caricati = []
+    for f in file:
+        dati = await f.read()
+        if len(dati) > MAX_UPLOAD:
+            raise HTTPException(400, f"{f.filename}: file troppo grande (massimo 25 MB).")
+        if not re.search(r"(?i)\.(pdf|docx|txt|md|html?)$", f.filename or ""):
+            raise HTTPException(400, f"{f.filename}: formato non supportato (PDF, Word, testo).")
+        caricati.append((os.path.basename(f.filename), dati))
+    if not caricati:
+        raise HTTPException(400, "Scegli almeno un file.")
+    threading.Thread(target=_lavora_biblioteca, args=(_carica_file, caricati), daemon=True).start()
+    return {"ok": True}
+
+
+@app.post("/api/biblioteca/ufficiali")
+def aggiorna_ufficiali():
+    if stato_biblioteca["lavoro"] == "in corso":
+        raise HTTPException(409, "Sto già caricando: aspetta che finisca.")
+    threading.Thread(target=_lavora_biblioteca, args=(biblioteca.carica_ufficiali, False), daemon=True).start()
+    return {"ok": True}
+
+
+@app.post("/api/biblioteca/{id_fonte}/rimuovi")
+def rimuovi_fonte(id_fonte: str):
+    if not id_fonte.startswith("MIO_"):
+        raise HTTPException(400, "Si possono togliere solo i materiali caricati da te.")
+    biblioteca.rimuovi(id_fonte)
+    return {"ok": True}
+
+
+def _primo_avvio_biblioteca():
+    time.sleep(20)
+    if not any(f["tipo"] == "ufficiale" for f in biblioteca.elenco()):
+        _lavora_biblioteca(biblioteca.carica_ufficiali, True)
+
+
+threading.Thread(target=_primo_avvio_biblioteca, daemon=True).start()
 
 
 @app.post("/api/collegamenti/{chiave}/fatto")

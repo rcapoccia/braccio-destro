@@ -156,13 +156,28 @@ function schedaBozza(v) {
 
 function schedaParere(v) {
   const m = el("div", "msg braccio");
-  const blocco = (titolo, testo) => { if (!testo) return; m.append(el("span", "titolo-r", titolo)); m.append(el("div", "", testo)); m.append(el("br")); };
-  if (v.sintesi) blocco(v.concordano ? "In sintesi (Mistral e Grok concordano)" : "In sintesi (Mistral e Grok NON concordano)", v.sintesi);
-  if (v.differenze && v.differenze.length) blocco("Dove non concordano", v.differenze.map(x => "• " + x).join("\n"));
-  if (v.da_verificare && v.da_verificare.length) blocco("Da verificare", v.da_verificare.map(x => "• " + x).join("\n"));
-  blocco("Parere Mistral", v.mistral);
-  blocco("Parere Grok", v.grok);
-  if (v.inviato_a_grok) { const d = el("details"); d.append(el("summary", "piccolo", "Cosa è stato inviato a Grok (senza dati)"), el("div", "piccolo", v.inviato_a_grok)); m.append(d); }
+  if (v.mistral && !v.risposta) { m.append(document.createTextNode(v.mistral)); m.append(el("span", "ora", v.ora)); return m; }
+  m.append(document.createTextNode(v.risposta || ""));
+  if (v.fonti && v.fonti.length) {
+    const d = el("details");
+    d.append(el("summary", "piccolo", "Fonti (" + v.fonti.length + ")"));
+    v.fonti.forEach(f => {
+      const r = el("div", "piccolo");
+      r.append(el("b", "", "[" + f.n + "] " + f.fonte + ", pag. " + f.pagina + (f.articolo ? ", " + f.articolo : "")));
+      r.append(el("div", "", f.estratto + "…"));
+      d.append(r);
+    });
+    m.append(d);
+  }
+  if (v.giri && v.giri.length) {
+    const corretti = v.giri.filter(g => !g.ok).length;
+    const t = "Ricontrollato da " + v.revisore + ": " + (corretti ? corretti + " giro/i di correzione" : "nessuna correzione necessaria");
+    const d = el("details");
+    d.append(el("summary", "piccolo", t));
+    v.giri.forEach(g => { if (g.problemi.length) d.append(el("div", "piccolo", "Giro " + g.giro + ":\n" + g.problemi.map(x => "• " + x).join("\n"))); });
+    if (v.inviato_al_revisore) d.append(el("div", "piccolo", "Testo inviato al revisore (senza dati):\n" + v.inviato_al_revisore));
+    m.append(d);
+  }
   if (v.nota) m.append(el("div", "nota", v.nota));
   m.append(el("span", "ora", v.ora));
   return m;
@@ -218,7 +233,8 @@ async function mostraVista(nome) {
   try {
     if (nome === "bozze") await caricaBozze();
     if (nome === "posta") await caricaPosta();
-    if (nome === "collegamenti") { await caricaCollegamenti(); await caricaGrok(); await caricaDispositivi(); }
+    if (nome === "collegamenti") { await caricaCollegamenti(); await caricaScaleway(); await caricaDispositivi(); }
+    if (nome === "biblioteca") await caricaBiblioteca();
     if (nome === "chat") scorriGiu();
   } catch (e) { $("#vista-" + nome).append(el("p", "errore", e.message)); }
 }
@@ -295,9 +311,31 @@ async function caricaCollegamenti() {
   }));
 }
 
-async function caricaGrok() {
+async function caricaScaleway() {
   const k = await api("/api/chiavi");
-  $("#stato-grok").textContent = k.grok ? "Collegato." : "Non collegato.";
+  $("#stato-scaleway").textContent = k.scaleway ? "Collegato." : "Non collegato: il controllo lo fa Mistral.";
+}
+
+async function caricaBiblioteca() {
+  const b = await api("/api/biblioteca");
+  const box = $("#elenco-biblioteca");
+  const gruppi = [["ufficiale", "Testi ufficiali"], ["tuo", "I tuoi materiali"]];
+  box.replaceChildren();
+  gruppi.forEach(([tipo, titolo]) => {
+    const lista = b.fonti.filter(f => f.tipo === tipo);
+    const s = el("div", "scheda");
+    s.append(el("h3", "", titolo + " (" + lista.length + ")"));
+    if (!lista.length) s.append(el("p", "piccolo", tipo === "tuo" ? "Nessun materiale caricato." : "In caricamento…"));
+    lista.forEach(f => {
+      const r = el("div", "riga"); r.style.justifyContent = "space-between";
+      r.append(el("span", "piccolo", f.titolo + " · " + f.edizione + " · " + f.brani + " brani"));
+      if (tipo === "tuo") { const x = el("button", "leggero", "Togli"); x.onclick = async () => { if (confirm("Togliere " + f.titolo + "?")) { await api("/api/biblioteca/" + encodeURIComponent(f.id) + "/rimuovi", { method: "POST" }); caricaBiblioteca(); } }; r.append(x); }
+      s.append(r);
+    });
+    box.append(s);
+  });
+  $("#esito-biblioteca").textContent = b.in_corso ? "Sto caricando e indicizzando… (può richiedere qualche minuto)" : (b.esito ? b.esito.join("\n") : "");
+  if (b.in_corso) setTimeout(() => { if (!$("#vista-biblioteca").classList.contains("nascosto")) caricaBiblioteca(); }, 5000);
 }
 
 async function caricaDispositivi() {
@@ -320,14 +358,22 @@ $("#esci").onclick = async () => { await api("/api/esci", { method: "POST" }).ca
 $$("nav button").forEach(b => b.onclick = () => mostraVista(b.dataset.vista));
 $$(".scorciatoie button").forEach(b => b.onclick = () => { $("#testo").value = b.dataset.testo; $("#testo").focus(); });
 $("#togli-contesto").onclick = togliContesto;
-$("#salva-grok").onclick = async () => {
-  const chiave = $("#chiave-grok").value.trim();
+$("#salva-scaleway").onclick = async () => {
+  const chiave = $("#chiave-scaleway").value.trim();
   if (!chiave) { alert("Incolla prima la chiave."); return; }
-  try { await api("/api/chiavi/grok", { json: { chiave } }); $("#chiave-grok").value = ""; caricaGrok(); } catch (e) { alert(e.message); }
+  try { await api("/api/chiavi/scaleway", { json: { chiave } }); $("#chiave-scaleway").value = ""; caricaScaleway(); } catch (e) { alert(e.message); }
 };
-$("#togli-grok").onclick = async () => {
-  if (!confirm("Scollegare Grok?")) return;
-  await api("/api/chiavi/grok", { json: { chiave: "" } }).catch(e => alert(e.message)); caricaGrok();
+$("#togli-scaleway").onclick = async () => {
+  if (!confirm("Scollegare il revisore europeo?")) return;
+  await api("/api/chiavi/scaleway", { json: { chiave: "" } }).catch(e => alert(e.message)); caricaScaleway();
+};
+$("#carica-biblioteca").onclick = async () => {
+  const fd = new FormData(); [...$("#file-biblioteca").files].forEach(f => fd.append("file", f));
+  try { await api("/api/biblioteca", { method: "POST", body: fd }); $("#file-biblioteca").value = ""; caricaBiblioteca(); } catch (e) { alert(e.message); }
+};
+$("#aggiorna-ufficiali").onclick = async () => {
+  if (!confirm("Riscaricare tutti i testi ufficiali? Ci vogliono alcuni minuti.")) return;
+  try { await api("/api/biblioteca/ufficiali", { method: "POST" }); caricaBiblioteca(); } catch (e) { alert(e.message); }
 };
 $("#modulo").onsubmit = inviaIstruzione;
 $("#file").onchange = () => { $("#file-scelti").textContent = [...$("#file").files].map(f => "📎 " + f.name).join("  "); };

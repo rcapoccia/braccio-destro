@@ -58,3 +58,11 @@ def ocr_pdf(dati_pdf):
     risposta = _post("/ocr", {"model": MODELLO_OCR, "document": {"type": "document_url", "document_url": url}},
                      timeout=300)
     return "\n\n".join(p.get("markdown", "") for p in risposta.get("pages", []))
+
+
+def ocr_pagine(dati_pdf):
+    """Come ocr_pdf, ma una stringa per pagina (serve per citare la pagina)."""
+    url = "data:application/pdf;base64," + base64.b64encode(dati_pdf).decode()
+    risposta = _post("/ocr", {"model": MODELLO_OCR, "document": {"type": "document_url", "document_url": url}},
+                     timeout=300)
+    return [p.get("markdown", "") for p in risposta.get("pages", [])]

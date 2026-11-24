@@ -20,6 +20,7 @@ NON_TOGLIERE = {
     "mapfre", "arag", "das", "europ assistance", "coface", "atradius", "sace", "elba", "revo", "net insurance",
     "stital", "stile italiano", "navisio", "intermediari.ai", "mistral", "grok",
     "rc", "rct", "rco", "rca", "car", "d&o", "all risks", "polizza", "contraente", "assicurato", "codice civile",
+    "domanda", "fonti", "risposta", "risposta da controllare", "contesto", "revisione", "art", "pag",
 }
 
 ETICHETTE = {

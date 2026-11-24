@@ -17,4 +17,5 @@ web/static/icona.png
 schermo.sh
 sistema.sh
 anonimizza.py
-secondo_parere.py
+esperto.py
+biblioteca.py
