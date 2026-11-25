@@ -71,5 +71,5 @@ U
 systemctl daemon-reload
 systemctl enable --now braccio-schermo.service
 systemctl restart braccio-schermo.service braccio-web.service
-systemctl reload caddy
+systemctl restart caddy   # ripartendo, Caddy richiede subito il certificato HTTPS
 echo "Configurazione di sistema aggiornata."
