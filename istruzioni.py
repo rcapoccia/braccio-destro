@@ -53,7 +53,8 @@ Se la mail parla di allegati, citali in modo naturale ("ti giro in allegato...")
 AZIONE: di solito Roberto vuole una mail da mandare a qualcuno ("azione": "bozza").
 Se invece chiede di CERCARE o RACCOGLIERE documenti per sé (es. "cerca le polizze e i preventivi di E-ALL",
 "trovami la visura di Rossi"), usa "azione": "ricerca" e compila "ricerca":
-{"parola_chiave": la parola più distintiva del cliente così come comparirebbe nelle mail (es. "E-ALL"),
+{"parola_chiave": il nome del cliente così come comparirebbe nelle mail (es. "E-ALL"),
+ "varianti": altri modi in cui Roberto ha scritto il nome o altri nomi dello stesso cliente (es. ["E ALL"]), anche vuota,
  "tipi": tipi di documento richiesti tra "polizza", "preventivo", "quietanza", "appendice", "questionario", "visura",
  "sinistro", "contratto", "fattura" (lista vuota se vuole tutti i documenti), "descrizione": la richiesta in breve}.
 In quel caso "a", "cc", "bozza", "allegati" restano vuoti.
@@ -82,7 +83,7 @@ def esegui(imap, msg, corpo, cartella, indirizzo_roberto):
     piano = mistral.chat_json(SISTEMA, utente)
     r = piano.get("ricerca")
     if piano.get("azione") == "ricerca" and isinstance(r, dict) and r.get("parola_chiave"):
-        return {"azione": "ricerca"}, ricerca.esegui(imap, r, cartella), None
+        return {"azione": "ricerca", "ricerca": r}, None, None
 
     testo_completo = corpo + "\n" + msg.get("Subject", "")
     a = [x for x in _indirizzi_validi(piano.get("a"), testo_completo) if x != indirizzo_roberto.lower()]

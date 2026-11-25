@@ -48,6 +48,7 @@ import istruzioni  # noqa: E402
 import mistral  # noqa: E402
 import posta  # noqa: E402
 import pratiche  # noqa: E402
+import ricerca  # noqa: E402
 import biblioteca  # noqa: E402
 import esperto  # noqa: E402
 
@@ -315,7 +316,7 @@ def _salva_chat(voce):
 def leggi_chat():
     chat = _leggi_json(FILE_CHAT, [])
     for v in chat:   # i file scaduti non si scaricano più
-        for f in v.get("file", []):
+        for f in v.get("file", []) + v.get("documenti", []):
             f["disponibile"] = f["id"] in documenti
     return chat
 
@@ -385,11 +386,14 @@ def _esegui(id_lavoro, testo, uid_mail, caricati):
 
         dati, risultato, nota = istruzioni.esegui(imap, msg, corpo, "INBOX", posta.IMAP_USER)
         if dati.get("azione") == "ricerca":
-            oggetto, testo_nota, trovati = risultato
-            voce["tipo"] = "ricerca"
-            voce["titolo"] = oggetto
-            voce["testo"] = testo_nota.replace("-- Braccio destro (nota interna, non inoltrare)", "").strip()
-            voce["file"] = [_registra_documento(n, d) for n, d in trovati]
+            esito = ricerca.trova(imap, dati["ricerca"], "INBOX")
+            voce.update({"tipo": "ricerca", "cliente": esito["cliente"], "nomi": esito["nomi"],
+                         "scartati": esito["scartati"], "titoli": ricerca.TITOLI_TIPI,
+                         "documenti": [{**_registra_documento(d["nome"], d["dati"]),
+                                        **{k: d.get(k, "") for k in ("tipo", "compagnia", "numero", "scadenza",
+                                                                      "descrizione", "data", "verso", "contatto",
+                                                                      "oggetto")}}
+                                       for d in esito["documenti"]]})
         else:
             bozza = posta.bozza_da_istruzione(dati, risultato)
             imap.append(posta.trova_cartella_bozze(imap), "(\\Draft)", imaplib.Time2Internaldate(time.time()),

@@ -31,6 +31,7 @@ from email.message import EmailMessage
 import mistral
 import pratiche
 import istruzioni
+import ricerca
 import questionari
 
 # --- Configurazione (da /etc/braccio-destro/posta.env) ---------------------
@@ -403,7 +404,7 @@ def esegui_istruzione(imap, bozze, uid_s, msg):
     corpo, _ = testo_da_messaggio(msg)
     dati, allegati, nota = istruzioni.esegui(imap, msg, corpo, "INBOX", IMAP_USER)
     if dati.get("azione") == "ricerca":
-        oggetto, testo, documenti = allegati
+        oggetto, testo, documenti = ricerca.esegui(imap, dati["ricerca"], "INBOX")
         imap.append("INBOX", "", imaplib.Time2Internaldate(time.time()),
                     nota_interna(oggetto, testo, documenti).as_bytes(policy=email.policy.SMTP))
         log.info("UID %s: ricerca eseguita -> nota con %d allegati", uid_s, len(documenti))

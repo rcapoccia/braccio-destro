@@ -94,6 +94,7 @@ function disegnaMessaggio(v) {
   }
   if (v.tipo === "bozza") { box.append(schedaBozza(v)); return; }
   if (v.tipo === "parere") { box.append(schedaParere(v)); return; }
+  if (v.tipo === "ricerca" && v.documenti) { box.append(schedaRicerca(v)); return; }
   const m = el("div", "msg braccio" + (v.tipo === "errore" ? " errore-msg" : ""));
   if (v.titolo) m.append(el("span", "titolo-r", v.titolo));
   m.append(document.createTextNode(v.testo || ""));
@@ -152,6 +153,50 @@ function schedaBozza(v) {
     } catch (e) { $(".b-esito", n).textContent = e.message; }
   };
   return n;
+}
+
+function schedaRicerca(v) {
+  const s = el("div", "scheda ricerca");
+  const testa = el("div", "r-testa");
+  testa.append(el("span", "r-titolo", "Documenti di " + v.cliente), el("span", "r-num", String(v.documenti.length)));
+  s.append(testa);
+  const info = "Cercato come " + v.nomi.join(", ") + " · posta arrivata e inviata, ultimi 3 anni" +
+    (v.scartati ? " · " + v.scartati + " allegati di altri clienti o non utili esclusi" : "");
+  s.append(el("p", "piccolo", info));
+  if (!v.documenti.length) { s.append(el("p", "", "Nessun documento trovato. Prova con la ragione sociale completa o la partita IVA.")); s.append(el("span", "ora", v.ora)); return s; }
+  const tipi = [...new Set(v.documenti.map(d => d.tipo))];
+  const filtri = el("div", "filtri");
+  const corpo = el("div");
+  const disegna = (filtro) => {
+    corpo.replaceChildren();
+    $$("button", filtri).forEach(b => b.classList.toggle("attivo", b.dataset.t === filtro));
+    tipi.filter(t => filtro === "tutti" || t === filtro).forEach(t => {
+      const docs = v.documenti.filter(d => d.tipo === t);
+      corpo.append(el("div", "r-gruppo", (v.titoli[t] || t) + " · " + docs.length));
+      docs.forEach(d => {
+        const riga = el(d.disponibile === false ? "div" : "a", "r-doc");
+        if (d.disponibile !== false) { riga.href = "/api/file/" + encodeURIComponent(d.id); riga.target = "_blank"; riga.rel = "noopener"; }
+        const testo = el("div", "r-testo");
+        testo.append(el("span", "r-desc", d.descrizione || d.nome));
+        const dettagli = [d.compagnia, d.numero ? "n. " + d.numero : "", d.scadenza ? "scad. " + d.scadenza : ""].filter(Boolean).join(" · ");
+        if (dettagli) testo.append(el("span", "r-det", dettagli));
+        testo.append(el("span", "r-meta", [d.data, (d.verso === "inviata" ? "a " : "da ") + d.contatto].filter(Boolean).join(" · ") +
+          (d.disponibile === false ? " · scaduto: rifai la ricerca" : "")));
+        riga.append(el("span", "r-icona", "📄"), testo, el("span", "r-freccia", "›"));
+        corpo.append(riga);
+      });
+    });
+  };
+  if (tipi.length > 1) {
+    [["tutti", "Tutti"], ...tipi.map(t => [t, v.titoli[t] || t])].forEach(([t, nome]) => {
+      const b = el("button", "", nome); b.dataset.t = t; b.onclick = () => disegna(t); filtri.append(b);
+    });
+    s.append(filtri);
+  }
+  s.append(corpo);
+  disegna("tutti");
+  s.append(el("span", "ora", v.ora));
+  return s;
 }
 
 function schedaParere(v) {
