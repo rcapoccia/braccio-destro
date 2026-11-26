@@ -33,6 +33,7 @@
 </section>
 
 <section id="app" class="schermo nascosto">
+  <div id="rilascia" class="nascosto">Rilascia qui i file</div>
   <header>
     <span class="titolo">Braccio destro</span>
     <button id="esci" class="leggero">Esci</button>
@@ -94,18 +95,20 @@
       <textarea id="testo" rows="1" placeholder="Scrivi o detta un'istruzione"></textarea>
       <button type="submit" id="invia" class="primario">Invia</button>
     </form>
-    <div id="file-scelti" class="piccolo"></div>
+    <div id="file-scelti"></div>
   </footer>
 </section>
 
 <template id="modello-bozza">
   <div class="scheda bozza">
-    <label>A <input class="b-a"></label>
-    <label>Cc <input class="b-cc"></label>
-    <label>Oggetto <input class="b-oggetto"></label>
-    <textarea class="b-testo" rows="10"></textarea>
-    <div class="b-allegati piccolo"></div>
-    <div class="riga">
+    <div class="b-testa"><span class="b-titolo"></span><span class="b-stato">Da approvare</span></div>
+    <div class="b-campo"><span>A</span><input class="b-a" placeholder="indirizzo@esempio.it"></div>
+    <div class="b-campo"><span>Cc</span><input class="b-cc"></div>
+    <div class="b-campo"><span>Oggetto</span><input class="b-oggetto"></div>
+    <textarea class="b-testo"></textarea>
+    <div class="b-allegati"></div>
+    <div class="b-controlli"></div>
+    <div class="riga b-azioni">
       <button class="b-scarta leggero">Scarta</button>
       <button class="b-invia primario">Approva e invia</button>
     </div>

@@ -61,7 +61,7 @@ In quel caso "a", "cc", "bozza", "allegati" restano vuoti.
 
 Rispondi SOLO in JSON:
 {"azione": "bozza" | "ricerca", "ricerca": {...} o null, "a": [indirizzi], "cc": [indirizzi], "oggetto": testo (di solito "R: " + oggetto originale),
- "bozza": testo della mail, "allegati": [{"tipo": ..., "compagnia": ..., "ramo": ..., "descrizione": ..., "parola_chiave": ...}],
+ "bozza": testo della mail in TESTO SEMPLICE (niente markdown: niente asterischi, grassetti o titoli; per gli elenchi usa "- "), "allegati": [{"tipo": ..., "compagnia": ..., "ramo": ..., "descrizione": ..., "parola_chiave": ...}],
  "dubbi": [cose che Roberto deve controllare]}"""
 
 
@@ -138,7 +138,8 @@ def esegui(imap, msg, corpo, cartella, indirizzo_roberto):
                 problemi.append(f"Non ho trovato nella posta: {descrizione} ({parola}).")
 
     bozza = {"a": a, "cc": cc, "oggetto": piano.get("oggetto") or ("R: " + oggetto),
-             "bozza": piano.get("bozza", ""), "riferimento": _id_originale(inoltrata)}
+             "bozza": senza_markdown(piano.get("bozza", "")), "riferimento": _id_originale(inoltrata),
+             "problemi": problemi, "usati": documenti_usati}
     nota = None
     if problemi or documenti_usati:
         righe = [f"Istruzione: {istruzione.strip()[:300]}", ""]
@@ -149,6 +150,14 @@ def esegui(imap, msg, corpo, cartella, indirizzo_roberto):
         righe += ["", "-- Braccio destro (nota interna, non inoltrare)"]
         nota = "\n".join(righe)
     return bozza, allegati, nota
+
+
+def senza_markdown(testo):
+    """Le mail sono testo semplice: via asterischi, cancelletti e simili che Mistral a volte aggiunge."""
+    testo = re.sub(r"\*\*(.+?)\*\*|__(.+?)__", lambda m: m.group(1) or m.group(2), testo or "")
+    testo = re.sub(r"(?m)^\s{0,3}#{1,6}\s+", "", testo)
+    testo = re.sub(r"(?m)^(\s*)[*•]\s+", r"\1- ", testo)
+    return testo
 
 
 def pratiche_separa(corpo):

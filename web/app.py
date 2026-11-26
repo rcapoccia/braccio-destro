@@ -401,7 +401,7 @@ def _esegui(id_lavoro, testo, uid_mail, caricati):
             voce.update({"tipo": "bozza", "mid": bozza["Message-ID"], "a": dati["a"], "cc": dati["cc"],
                          "oggetto": dati["oggetto"], "testo": dati["bozza"].strip(),
                          "allegati": [n for n, _ in risultato],
-                         "nota": (nota or "").replace("-- Braccio destro (nota interna, non inoltrare)", "").strip(),
+                         "controlli": dati.get("problemi") or [], "usati": dati.get("usati") or [],
                          "stato_bozza": "da approvare"})
         log.info("Istruzione eseguita dalla pagina: %s", voce.get("tipo"))
     except mistral.TettoRaggiunto:

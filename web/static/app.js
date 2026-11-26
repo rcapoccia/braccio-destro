@@ -2,6 +2,22 @@
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 let mailScelta = null;
+let fileScelti = [];
+
+function aggiungiFile(lista) {
+  [...lista].forEach(f => { if (!fileScelti.some(x => x.name === f.name && x.size === f.size)) fileScelti.push(f); });
+  disegnaFile();
+}
+
+function disegnaFile() {
+  const box = $("#file-scelti");
+  box.replaceChildren(...fileScelti.map((f, i) => {
+    const c = el("span", "chip", "📎 " + f.name + " ");
+    const x = el("button", "chip-x", "✕"); x.setAttribute("aria-label", "Togli " + f.name);
+    x.onclick = () => { fileScelti.splice(i, 1); disegnaFile(); };
+    c.append(x); return c;
+  }));
+}
 
 // --- Chiamate al server -------------------------------------------------------
 async function api(percorso, opzioni = {}) {
@@ -114,18 +130,34 @@ function disegnaMessaggio(v) {
 
 function schedaBozza(v) {
   const n = $("#modello-bozza").content.firstElementChild.cloneNode(true);
+  const nome = (v.testo || "").match(/^\s*(?:Ciao|Buongiorno|Gentile|Caro|Cara)\s+([^,\n]{1,30})/i);
+  $(".b-titolo", n).textContent = "Bozza" + (nome ? " per " + nome[1].trim() : "");
   $(".b-a", n).value = (v.a || []).join(", ");
   $(".b-cc", n).value = (v.cc || []).join(", ");
   $(".b-oggetto", n).value = v.oggetto || "";
-  $(".b-testo", n).value = v.testo || "";
-  if (v.allegati && v.allegati.length) $(".b-allegati", n).textContent = "📎 " + v.allegati.join(", ");
-  if (v.nota) { const x = el("div", "nota", v.nota); $(".b-allegati", n).after(x); }
+  const area = $(".b-testo", n);
+  area.value = (v.testo || "").replace(/\*\*(.+?)\*\*/g, "$1");
+  const adatta = () => { area.style.height = "auto"; area.style.height = (area.scrollHeight + 4) + "px"; };
+  area.addEventListener("input", adatta); setTimeout(adatta, 0);
+  const segnaA = () => $(".b-a", n).classList.toggle("vuoto", !$(".b-a", n).value.trim());
+  $(".b-a", n).addEventListener("input", segnaA); segnaA();
+  (v.allegati || []).forEach(a => $(".b-allegati", n).append(el("span", "chip", "📎 " + a)));
+  const controlli = [...(v.controlli || [])];
+  if (!controlli.length && v.nota) controlli.push(...v.nota.split("\n").filter(r => r.startsWith("- ")).map(r => r.slice(2)));
+  if (controlli.length) {
+    const d = el("details", "b-dacontrollare");
+    d.open = controlli.length <= 3;
+    d.append(el("summary", "", "Da controllare (" + controlli.length + ")"));
+    const ul = el("ul"); controlli.forEach(c => ul.append(el("li", "", c))); d.append(ul);
+    $(".b-controlli", n).append(d);
+  }
   const id = v.id_bozza || (v.mid ? btoa(v.mid).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") : null);
   const finito = v.stato_bozza && v.stato_bozza !== "da approvare";
   if (finito || !id) {
     $$("input,textarea,button", n).forEach(x => x.disabled = true);
-    $(".b-esito", n).textContent = finito ? "Bozza " + v.stato_bozza + "." : "";
-    $(".b-esito", n).className = "b-esito stato-ok";
+    $(".b-stato", n).textContent = finito ? (v.stato_bozza === "inviata" ? "Inviata" : "Scartata") : "";
+    $(".b-stato", n).classList.add("fatto");
+    $(".b-azioni", n).classList.add("nascosto");
   }
   $(".b-invia", n).onclick = async () => {
     const a = $(".b-a", n).value.split(/[,;]/).map(s => s.trim()).filter(Boolean);
@@ -138,7 +170,8 @@ function schedaBozza(v) {
         a, cc: $(".b-cc", n).value.split(/[,;]/).map(s => s.trim()).filter(Boolean),
         oggetto: $(".b-oggetto", n).value, testo: $(".b-testo", n).value } });
       $$("input,textarea", n).forEach(x => x.disabled = true);
-      $(".b-esito", n).textContent = "Inviata. La trovi nella posta inviata.";
+      $(".b-stato", n).textContent = "Inviata"; $(".b-stato", n).classList.add("fatto"); $(".b-azioni", n).classList.add("nascosto");
+      $(".b-esito", n).textContent = "La trovi nella posta inviata.";
       $(".b-esito", n).className = "b-esito stato-ok";
       contaBozze();
     } catch (e) { $(".b-esito", n).textContent = e.message; bottoni.forEach(b => b.disabled = false); }
@@ -247,11 +280,11 @@ async function inviaIstruzione(ev) {
   const fd = new FormData();
   fd.append("testo", testo);
   if (mailScelta) fd.append("uid_mail", mailScelta.uid);
-  [...$("#file").files].forEach(f => fd.append("file", f));
+  fileScelti.forEach(f => fd.append("file", f));
   $("#invia").disabled = true;
   try {
     const { lavoro } = await api("/api/chat", { method: "POST", body: fd });
-    $("#testo").value = ""; $("#file").value = ""; $("#file-scelti").textContent = "";
+    $("#testo").value = ""; $("#file").value = ""; fileScelti = []; disegnaFile();
     togliContesto();
     await caricaChat();
     const attesa = el("div", "attesa", "Sto lavorando… (una ricerca può richiedere un minuto)");
@@ -421,7 +454,19 @@ $("#aggiorna-ufficiali").onclick = async () => {
   try { await api("/api/biblioteca/ufficiali", { method: "POST" }); caricaBiblioteca(); } catch (e) { alert(e.message); }
 };
 $("#modulo").onsubmit = inviaIstruzione;
-$("#file").onchange = () => { $("#file-scelti").textContent = [...$("#file").files].map(f => "📎 " + f.name).join("  "); };
+$("#file").onchange = () => { aggiungiFile($("#file").files); $("#file").value = ""; };
+$("#testo").addEventListener("paste", e => {
+  const files = e.clipboardData && e.clipboardData.files;
+  if (files && files.length) { e.preventDefault(); aggiungiFile(files); }
+});
+let trascina = 0;
+document.addEventListener("dragenter", e => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { trascina++; $("#rilascia").classList.remove("nascosto"); } });
+document.addEventListener("dragleave", () => { if (--trascina <= 0) { trascina = 0; $("#rilascia").classList.add("nascosto"); } });
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("drop", e => {
+  e.preventDefault(); trascina = 0; $("#rilascia").classList.add("nascosto");
+  if (e.dataTransfer?.files?.length) { aggiungiFile(e.dataTransfer.files); mostraVista("chat"); }
+});
 $("#testo").oninput = e => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px"; };
 
 fetch("/api/stato").then(r => r.json()).then(s => s.dentro ? avvia() : mostraIngresso()).catch(mostraIngresso);
