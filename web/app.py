@@ -50,6 +50,7 @@ import posta  # noqa: E402
 import pratiche  # noqa: E402
 import ricerca  # noqa: E402
 import biblioteca  # noqa: E402
+import clienti  # noqa: E402
 import esperto  # noqa: E402
 
 DOMINIO = os.environ.get("WEB_DOMINIO", "braccio.stital.it")
@@ -601,6 +602,102 @@ def _segna_bozza(mid, stato_bozza):
 @app.get("/api/dispositivi")
 def dispositivi():
     return [{"nome": c["nome"], "creata": c["creata"]} for c in _leggi_json(FILE_CREDENZIALI, [])]
+
+
+# --- Clienti -----------------------------------------------------------------------------
+stato_clienti = {}   # id_cliente -> "aggiorno" mentre lavora
+
+
+def _lavora_cliente(id_cliente, documenti_ricerca=None):
+    stato_clienti[id_cliente] = "aggiorno"
+    imap = None
+    try:
+        if documenti_ricerca:
+            clienti.aggiungi_documenti(id_cliente, documenti_ricerca)
+            clienti.anagrafica_da_visura(id_cliente)
+        else:
+            imap = _imap()
+            imap.select("INBOX")
+            clienti.aggiorna_dalla_posta(imap, id_cliente)
+    except Exception as e:
+        log.error("Cliente %s: aggiornamento non riuscito (%s)", id_cliente, type(e).__name__)
+    finally:
+        if imap:
+            _chiudi(imap)
+        stato_clienti.pop(id_cliente, None)
+
+
+@app.get("/api/clienti")
+def elenco_clienti():
+    return clienti.elenco()
+
+
+@app.post("/api/clienti")
+async def crea_cliente(request: Request):
+    """Nuovo cliente: dal nome, oppure dai documenti di una ricerca appena fatta in chat."""
+    corpo = await request.json()
+    nome = (corpo.get("nome") or "").strip()
+    voce = None
+    if corpo.get("da_ricerca"):
+        voce = next((v for v in _leggi_json(FILE_CHAT, []) if v.get("id") == corpo["da_ricerca"]), None)
+        nome = nome or (voce or {}).get("cliente", "")
+    try:
+        id_cliente = clienti.crea(nome, (voce or {}).get("nomi"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    docs = []
+    for d in (voce or {}).get("documenti", []):
+        mem = documenti.get(d["id"])
+        if mem:
+            docs.append({**d, "nome": mem[0], "dati": mem[1]})
+    threading.Thread(target=_lavora_cliente, args=(id_cliente, docs or None), daemon=True).start()
+    return {"id": id_cliente}
+
+
+@app.get("/api/clienti/{id_cliente}")
+def apri_cliente(id_cliente: int):
+    s = clienti.scheda(id_cliente)
+    if not s:
+        raise HTTPException(404, "Cliente non trovato.")
+    s["in_aggiornamento"] = id_cliente in stato_clienti
+    return s
+
+
+@app.post("/api/clienti/{id_cliente}/modifica")
+async def modifica_cliente(id_cliente: int, request: Request):
+    clienti.modifica(id_cliente, await request.json())
+    return {"ok": True}
+
+
+@app.post("/api/clienti/{id_cliente}/aggiorna")
+def aggiorna_cliente(id_cliente: int):
+    if id_cliente in stato_clienti:
+        raise HTTPException(409, "Sto già aggiornando questo cliente.")
+    threading.Thread(target=_lavora_cliente, args=(id_cliente,), daemon=True).start()
+    return {"ok": True}
+
+
+@app.post("/api/clienti/{id_cliente}/elimina")
+def elimina_cliente(id_cliente: int):
+    clienti.elimina(id_cliente)
+    return {"ok": True}
+
+
+@app.post("/api/clienti/{id_cliente}/documenti/{id_doc}/togli")
+def togli_documento_cliente(id_cliente: int, id_doc: int):
+    clienti.togli_documento(id_cliente, id_doc)
+    return {"ok": True}
+
+
+@app.get("/api/clienti/{id_cliente}/documenti/{id_doc}")
+def scarica_documento_cliente(id_cliente: int, id_doc: int):
+    r = clienti.file_documento(id_cliente, id_doc)
+    if not r:
+        raise HTTPException(404, "Documento non trovato.")
+    nome, dati = r
+    nome_sicuro = re.sub(r'[^\w .()-]', "_", nome)
+    return Response(dati, media_type=mimetypes.guess_type(nome)[0] or "application/octet-stream",
+                    headers={"Content-Disposition": f'inline; filename="{nome_sicuro}"'})
 
 
 # --- Collegamenti: browser sul server per i login (Navisio, intermediari.ai) ----------------

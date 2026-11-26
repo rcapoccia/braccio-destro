@@ -40,6 +40,7 @@
   </header>
   <nav>
     <button data-vista="chat" class="attivo">Chat</button>
+    <button data-vista="clienti">Clienti</button>
     <button data-vista="bozze">Bozze <span id="num-bozze"></span></button>
     <button data-vista="posta">Posta</button>
     <button data-vista="biblioteca">Biblioteca</button>
@@ -49,6 +50,13 @@
   <main>
     <div id="vista-chat" class="vista">
       <div id="messaggi"></div>
+    </div>
+    <div id="vista-clienti" class="vista nascosto">
+      <div id="elenco-clienti-box">
+        <div class="riga cerca-cliente"><input id="filtro-clienti" placeholder="Cerca cliente"><button id="nuovo-cliente" class="primario">Nuovo</button></div>
+        <div id="elenco-clienti"></div>
+      </div>
+      <div id="scheda-cliente" class="nascosto"></div>
     </div>
     <div id="vista-bozze" class="vista nascosto"><div id="elenco-bozze"></div></div>
     <div id="vista-posta" class="vista nascosto">

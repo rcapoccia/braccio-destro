@@ -228,6 +228,13 @@ function schedaRicerca(v) {
   }
   s.append(corpo);
   disegna("tutti");
+  const crea = el("button", "primario", "Salva nella scheda cliente");
+  crea.onclick = async () => {
+    crea.disabled = true;
+    try { const r = await api("/api/clienti", { json: { da_ricerca: v.id } }); apriCliente(r.id); }
+    catch (e) { alert(e.message); crea.disabled = false; }
+  };
+  const riga = el("div", "riga"); riga.append(crea); s.append(riga);
   s.append(el("span", "ora", v.ora));
   return s;
 }
@@ -303,18 +310,110 @@ async function inviaIstruzione(ev) {
 function togliContesto() { mailScelta = null; $("#contesto").classList.add("nascosto"); }
 
 // --- Viste ------------------------------------------------------------------------
-async function mostraVista(nome) {
+async function mostraVista(nome, senzaCaricare) {
   $$("nav button").forEach(b => b.classList.toggle("attivo", b.dataset.vista === nome));
   $$(".vista").forEach(v => v.classList.add("nascosto"));
   $("#vista-" + nome).classList.remove("nascosto");
   $("#barra").classList.toggle("nascosto", nome !== "chat");
   try {
+    if (nome === "clienti" && !senzaCaricare) await caricaClienti();
     if (nome === "bozze") await caricaBozze();
     if (nome === "posta") await caricaPosta();
     if (nome === "collegamenti") { await caricaCollegamenti(); await caricaScaleway(); await caricaDispositivi(); }
     if (nome === "biblioteca") await caricaBiblioteca();
     if (nome === "chat") scorriGiu();
   } catch (e) { $("#vista-" + nome).append(el("p", "errore", e.message)); }
+}
+
+// --- Clienti -------------------------------------------------------------------------
+let clientiCache = [];
+
+async function caricaClienti() {
+  $("#scheda-cliente").classList.add("nascosto");
+  $("#elenco-clienti-box").classList.remove("nascosto");
+  clientiCache = await api("/api/clienti");
+  disegnaClienti();
+}
+
+function disegnaClienti() {
+  const f = $("#filtro-clienti").value.trim().toLowerCase();
+  const box = $("#elenco-clienti");
+  const lista = clientiCache.filter(c => !f || (c.nome + " " + c.piva).toLowerCase().includes(f));
+  if (!clientiCache.length) { box.replaceChildren(el("p", "aiuto", "Nessun cliente. Fai una ricerca in chat e tocca \"Salva nella scheda cliente\", oppure tocca Nuovo.")); return; }
+  box.replaceChildren(...lista.map(c => {
+    const v = el("button", "voce cliente-voce");
+    const su = el("span", "su"); su.append(el("span", "cl-nome", c.nome), el("span", "", c.piva ? "P.IVA " + c.piva : ""));
+    v.append(su);
+    const info = [c.attivita, c.polizze + " polizze", c.documenti + " documenti"].filter(Boolean).join(" · ");
+    v.append(el("span", "og piccolo", info));
+    if (c.prossima_scadenza) v.append(el("span", "og piccolo scad", "Prossima scadenza: " + c.prossima_scadenza));
+    v.onclick = () => apriCliente(c.id);
+    return v;
+  }));
+}
+
+function rigaDocumento(idCliente, d, mostraScadenza) {
+  const r = el("a", "r-doc");
+  r.href = "/api/clienti/" + idCliente + "/documenti/" + d.id; r.target = "_blank"; r.rel = "noopener";
+  const t = el("div", "r-testo");
+  t.append(el("span", "r-desc", d.descrizione || d.nome));
+  const det = [d.compagnia, d.numero ? "n. " + d.numero : "", d.scadenza ? "scad. " + d.scadenza : ""].filter(Boolean).join(" · ");
+  if (det) t.append(el("span", "r-det", det));
+  t.append(el("span", "r-meta", [d.data, d.contatto ? (d.verso === "inviata" ? "a " : "da ") + d.contatto : ""].filter(Boolean).join(" · ")));
+  r.append(el("span", "r-icona", "📄"), t);
+  if (mostraScadenza && d.giorni !== null && d.giorni !== undefined) {
+    const g = el("span", "giorni " + (d.giorni <= 30 ? "rosso" : d.giorni <= 60 ? "giallo" : "verde"), d.giorni + " gg");
+    r.append(g);
+  } else r.append(el("span", "r-freccia", "›"));
+  return r;
+}
+
+async function apriCliente(id) {
+  mostraVista("clienti", true);
+  $("#elenco-clienti-box").classList.add("nascosto");
+  const box = $("#scheda-cliente");
+  box.classList.remove("nascosto");
+  box.replaceChildren(el("p", "aiuto", "Carico la scheda…"));
+  const c = await api("/api/clienti/" + id);
+  const indietro = el("button", "leggero", "‹ Tutti i clienti"); indietro.onclick = caricaClienti;
+  const testa = el("div", "scheda");
+  testa.append(el("div", "cl-titolo", c.nome));
+  const ana = [["P.IVA", c.piva], ["Sede", c.sede], ["Legale rappr.", c.legale], ["Attività", c.attivita], ["ATECO", c.ateco], ["PEC", c.pec]];
+  const tab = el("div", "anagrafica");
+  ana.filter(([, x]) => x).forEach(([k, x]) => { tab.append(el("span", "k", k), el("span", "", x)); });
+  if (!ana.some(([, x]) => x)) tab.append(el("span", "piccolo", c.in_aggiornamento ? "Sto leggendo la visura…" : "Anagrafica non ancora disponibile: serve una visura tra i documenti."));
+  testa.append(tab);
+  const azioni = el("div", "riga");
+  const agg = el("button", "", c.in_aggiornamento ? "Aggiornamento in corso…" : "Aggiorna dalla posta");
+  agg.disabled = !!c.in_aggiornamento;
+  agg.onclick = async () => { await api("/api/clienti/" + id + "/aggiorna", { method: "POST" }).catch(e => alert(e.message)); apriCliente(id); };
+  azioni.append(agg); testa.append(azioni);
+  const pezzi = [indietro, testa];
+  const sezione = (titolo, docs, scad) => {
+    if (!docs.length) return;
+    const s = el("div", "scheda"); s.append(el("div", "r-gruppo", titolo + " · " + docs.length));
+    docs.forEach(d => s.append(rigaDocumento(id, d, scad))); pezzi.push(s);
+  };
+  sezione("Polizze in corso", c.polizze_in_corso, true);
+  sezione("Polizze senza scadenza letta", c.polizze_senza_scadenza, false);
+  const altri = c.documenti.filter(d => d.tipo !== "polizza");
+  const gruppi = [...new Set(altri.map(d => d.tipo))];
+  gruppi.forEach(t => sezione(c.titoli[t] || t, altri.filter(d => d.tipo === t), false));
+  sezione("Polizze scadute", c.polizze_scadute, false);
+  const note = el("div", "scheda");
+  note.append(el("div", "r-gruppo", "Contatti e note"));
+  const campi = [["email", "Email"], ["telefono", "Telefono"]].map(([k, l]) => { const i = el("input"); i.placeholder = l; i.value = c[k]; i.dataset.k = k; return i; });
+  const ta = el("textarea"); ta.rows = 4; ta.placeholder = "Note sul cliente"; ta.value = c.note; ta.dataset.k = "note";
+  const salva = el("button", "primario", "Salva");
+  salva.onclick = async () => { const dati = {}; [...campi, ta].forEach(i => dati[i.dataset.k] = i.value); await api("/api/clienti/" + id + "/modifica", { json: dati }); salva.textContent = "Salvato"; setTimeout(() => salva.textContent = "Salva", 1500); };
+  note.append(...campi, ta);
+  const r2 = el("div", "riga");
+  const del = el("button", "leggero", "Elimina scheda");
+  del.onclick = async () => { if (confirm("Eliminare la scheda di " + c.nome + " e tutti i suoi documenti salvati sul server? Le mail restano.")) { await api("/api/clienti/" + id + "/elimina", { method: "POST" }); caricaClienti(); } };
+  r2.append(del, salva); note.append(r2); pezzi.push(note);
+  pezzi.push(el("p", "piccolo", "Creata il " + c.creato + " · aggiornata il " + c.aggiornato + " · cercata in posta come: " + c.nomi_ricerca.join(", ")));
+  box.replaceChildren(...pezzi);
+  if (c.in_aggiornamento) setTimeout(() => { if (!box.classList.contains("nascosto")) apriCliente(id); }, 5000);
 }
 
 async function caricaBozze() {
@@ -436,6 +535,12 @@ $("#esci").onclick = async () => { await api("/api/esci", { method: "POST" }).ca
 $$("nav button").forEach(b => b.onclick = () => mostraVista(b.dataset.vista));
 $$(".scorciatoie button").forEach(b => b.onclick = () => { $("#testo").value = b.dataset.testo; $("#testo").focus(); });
 $("#togli-contesto").onclick = togliContesto;
+$("#filtro-clienti").oninput = disegnaClienti;
+$("#nuovo-cliente").onclick = async () => {
+  const nome = prompt("Nome del cliente (come compare nelle mail, es. E-ALL):");
+  if (!nome) return;
+  try { const r = await api("/api/clienti", { json: { nome } }); apriCliente(r.id); } catch (e) { alert(e.message); }
+};
 $("#salva-scaleway").onclick = async () => {
   const chiave = $("#chiave-scaleway").value.trim();
   if (!chiave) { alert("Incolla prima la chiave."); return; }

@@ -86,3 +86,16 @@ code{font-size:13px}
 .b-dacontrollare ul{margin:6px 0 0;padding-left:18px}
 .b-dacontrollare li{margin:3px 0}
 #rilascia{position:fixed;inset:0;background:rgba(26,95,180,.15);border:3px dashed var(--accento);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--accento);z-index:10;pointer-events:none}
+.cerca-cliente{justify-content:stretch}
+.cerca-cliente input{flex:1}
+.cliente-voce .cl-nome{font-weight:500;font-size:16px;color:var(--testo)}
+.cliente-voce .scad{color:var(--avviso-testo)}
+.cl-titolo{font-size:20px;font-weight:500}
+.anagrafica{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}
+.anagrafica .k{color:var(--secondario)}
+.giorni{font-size:12px;border-radius:20px;padding:3px 8px;white-space:nowrap}
+.giorni.rosso{background:#fde8e6;color:var(--errore)}
+.giorni.giallo{background:var(--avviso);color:var(--avviso-testo)}
+.giorni.verde{background:var(--accento-chiaro);color:var(--ok)}
+#scheda-cliente{display:flex;flex-direction:column;gap:10px}
+#scheda-cliente > button.leggero{align-self:flex-start}
