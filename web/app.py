@@ -11,6 +11,7 @@ SICUREZZA:
 """
 
 import base64
+import datetime
 import email
 import email.header
 import email.policy
@@ -51,6 +52,7 @@ import pratiche  # noqa: E402
 import ricerca  # noqa: E402
 import biblioteca  # noqa: E402
 import clienti  # noqa: E402
+import elenchi  # noqa: E402
 import esperto  # noqa: E402
 
 DOMINIO = os.environ.get("WEB_DOMINIO", "braccio.stital.it")
@@ -340,8 +342,14 @@ async def nuova_istruzione(testo: str = Form(""), uid_mail: str = Form(""), file
     _salva_chat({"id": uuid.uuid4().hex, "chi": "roberto", "testo": testo, "ora": time.strftime("%d/%m %H:%M"),
                  "allegati": [n for n, _ in caricati], "mail": uid_mail or None})
     lavori[id_lavoro] = {"stato": "in corso"}
+    excel = [(n, d) for n, d in caricati if n.lower().endswith((".xlsx", ".xlsm"))]
     m = re.match(r"(?is)^\s*(?:secondo\s+parere|esperto|chiedi\s+all'esperto|domanda)\s*[:\-]\s*(.+)$", testo)
-    if m:
+    if excel and re.search(r"(?i)polizz|titol|elenco|lista", testo):
+        if any(v.get("stato") == "in corso" and v.get("elenco") for v in lavori.values()):
+            raise HTTPException(409, "Sto già lavorando su un elenco: aspetta che finisca.")
+        lavori[id_lavoro]["elenco"] = True
+        lavoratori.submit(_esegui_elenco, id_lavoro, testo, excel[0][1])
+    elif m:
         lavoratori.submit(_esegui_parere, id_lavoro, m.group(1).strip(), uid_mail)
     else:
         lavoratori.submit(_esegui, id_lavoro, testo, uid_mail, caricati)
@@ -439,6 +447,65 @@ def _esegui_parere(id_lavoro, domanda, uid_mail):
     except Exception as e:
         log.error("Secondo parere non riuscito: %s", type(e).__name__)
         voce.update({"tipo": "errore", "testo": "Non sono riuscito a preparare il secondo parere. Riprova."})
+    voce["ora"] = time.strftime("%d/%m %H:%M")
+    _salva_chat(voce)
+    lavori[id_lavoro] = {"stato": "fatto", "fine": time.time()}
+
+
+def _esegui_elenco(id_lavoro, testo, dati_excel):
+    """Per ogni polizza dell'elenco: cerca il documento in posta e lo salva nella scheda del cliente."""
+    voce = {"id": uuid.uuid4().hex, "chi": "braccio", "tipo": "elenco"}
+    anni = list(dict.fromkeys(int(a) for a in re.findall(r"\b(20[12]\d)\b", testo)))
+    anno = anni[0] if anni else datetime.date.today().year - 1
+    anno_riserva = anni[1] if len(anni) > 1 else anno - 1
+    imap = None
+    risultati = []
+    try:
+        polizze = elenchi.polizze_uniche(elenchi.leggi_excel(dati_excel))
+        lavori[id_lavoro]["avanzamento"] = f"0 di {len(polizze)} polizze"
+        for i, p in enumerate(polizze, start=1):
+            esito = {"cliente": p.get("cliente", ""), "polizza": p["polizza"], "compagnia": p.get("compagnia", ""),
+                     "rischio": p.get("rischio", "")}
+            for tentativo in range(2):
+                try:
+                    if imap is None:
+                        imap = _imap()
+                    r = elenchi.cerca_polizza(imap, p, anno, anno_riserva)
+                    break
+                except mistral.TettoRaggiunto:
+                    raise
+                except Exception as e:
+                    log.error("Elenco: polizza %d non elaborata (%s)", i, type(e).__name__)
+                    _chiudi(imap) if imap else None
+                    imap = None
+                    r = {"esito": "errore durante la ricerca, riprovare", "documento": None}
+            esito["esito"] = r["esito"]
+            doc = r["documento"]
+            if doc:
+                id_cliente = clienti.crea(esito["cliente"] or "Senza nome")
+                clienti.aggiungi_documenti(id_cliente, [{
+                    "nome": doc["nome"], "dati": doc["dati"], "tipo": "polizza", "compagnia": esito["compagnia"],
+                    "numero": p["polizza"], "scadenza": p.get("fine", ""), "descrizione": esito["rischio"] or doc["nome"],
+                    "data": doc.get("decorrenza", ""), "verso": "", "contatto": "", "oggetto": ""}])
+                esito.update({"file": doc["nome"], "decorrenza": doc.get("decorrenza", ""), "id_cliente": id_cliente})
+            risultati.append(esito)
+            lavori[id_lavoro]["avanzamento"] = f"{i} di {len(polizze)} polizze"
+        trovate = sum(1 for r in risultati if r.get("file"))
+        voce.update({"anno": anno, "anno_riserva": anno_riserva, "totale": len(risultati), "trovate": trovate,
+                     "risultati": [{k: r.get(k, "") for k in ("cliente", "polizza", "compagnia", "esito", "file",
+                                                                 "id_cliente")} for r in risultati],
+                     "report": _registra_documento(f"Esito polizze {anno}.xlsx", elenchi.report_excel(risultati))})
+    except mistral.TettoRaggiunto:
+        voce.update({"tipo": "errore", "testo": f"Mistral ha raggiunto il tetto di spesa dopo {len(risultati)} polizze. "
+                                                "Alza il tetto o riprova più tardi."})
+    except ValueError as e:
+        voce.update({"tipo": "errore", "testo": str(e)})
+    except Exception as e:
+        log.error("Elenco non riuscito: %s", type(e).__name__)
+        voce.update({"tipo": "errore", "testo": "Non sono riuscito a completare il lavoro sull'elenco."})
+    finally:
+        if imap:
+            _chiudi(imap)
     voce["ora"] = time.strftime("%d/%m %H:%M")
     _salva_chat(voce)
     lavori[id_lavoro] = {"stato": "fatto", "fine": time.time()}

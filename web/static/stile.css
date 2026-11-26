@@ -99,3 +99,5 @@ code{font-size:13px}
 .giorni.verde{background:var(--accento-chiaro);color:var(--ok)}
 #scheda-cliente{display:flex;flex-direction:column;gap:10px}
 #scheda-cliente > button.leggero{align-self:flex-start}
+.voce-elenco{width:100%;background:none;border:none;border-top:1px solid var(--bordo);border-radius:0;text-align:left}
+details > summary.r-gruppo{cursor:pointer}

@@ -111,6 +111,7 @@ function disegnaMessaggio(v) {
   if (v.tipo === "bozza") { box.append(schedaBozza(v)); return; }
   if (v.tipo === "parere") { box.append(schedaParere(v)); return; }
   if (v.tipo === "ricerca" && v.documenti) { box.append(schedaRicerca(v)); return; }
+  if (v.tipo === "elenco") { box.append(schedaElenco(v)); return; }
   const m = el("div", "msg braccio" + (v.tipo === "errore" ? " errore-msg" : ""));
   if (v.titolo) m.append(el("span", "titolo-r", v.titolo));
   m.append(document.createTextNode(v.testo || ""));
@@ -239,6 +240,36 @@ function schedaRicerca(v) {
   return s;
 }
 
+function schedaElenco(v) {
+  const s = el("div", "scheda ricerca");
+  const testa = el("div", "r-testa");
+  testa.append(el("span", "r-titolo", "Polizze dell'elenco"), el("span", "r-num", v.trovate + " / " + v.totale));
+  s.append(testa);
+  s.append(el("p", "piccolo", "Cercate con decorrenza " + v.anno + " (se nel " + v.anno + " c'era solo la quietanza, nel " + v.anno_riserva + "). " +
+    "Le polizze trovate sono salvate nelle schede Clienti."));
+  if (v.report && v.report.id) {
+    const a = el("a", "chip", "📊 Scarica l'esito in Excel"); a.href = "/api/file/" + encodeURIComponent(v.report.id); a.target = "_blank"; s.append(a);
+  }
+  const gruppi = [["Trovate", r => r.file], ["Da verificare", r => !r.file && /quietanz|errore/.test(r.esito)], ["Non trovate", r => !r.file && !/quietanz|errore/.test(r.esito)]];
+  gruppi.forEach(([titolo, filtro]) => {
+    const lista = v.risultati.filter(filtro);
+    if (!lista.length) return;
+    const d = el("details"); d.open = titolo !== "Trovate" && lista.length <= 15;
+    d.append(el("summary", "r-gruppo", titolo + " · " + lista.length));
+    lista.forEach(r => {
+      const riga = el(r.id_cliente ? "button" : "div", "r-doc voce-elenco");
+      const t = el("div", "r-testo");
+      t.append(el("span", "r-desc", r.cliente), el("span", "r-det", "n. " + r.polizza + " · " + (r.compagnia || "").replace(/^\d+\s*-\s*/, "")), el("span", "r-meta", r.esito));
+      riga.append(t);
+      if (r.id_cliente) { riga.append(el("span", "r-freccia", "›")); riga.onclick = () => apriCliente(r.id_cliente); }
+      d.append(riga);
+    });
+    s.append(d);
+  });
+  s.append(el("span", "ora", v.ora));
+  return s;
+}
+
 function schedaParere(v) {
   const m = el("div", "msg braccio");
   if (v.mistral && !v.risposta) { m.append(document.createTextNode(v.mistral)); m.append(el("span", "ora", v.ora)); return m; }
@@ -300,6 +331,7 @@ async function inviaIstruzione(ev) {
       await new Promise(r => setTimeout(r, 3000));
       const s = await api("/api/lavoro/" + lavoro);
       if (s.stato === "fatto") break;
+      if (s.avanzamento) attesa.textContent = "Sto lavorando sull'elenco: " + s.avanzamento + "… (puoi chiudere l'app, continuo da solo)";
     }
     await caricaChat();
     contaBozze();
