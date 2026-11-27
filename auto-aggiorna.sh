@@ -133,6 +133,7 @@ principale() {
   if [[ -f "$STATO/in-corso" ]]; then
     dire "L'ultimo aggiornamento si era interrotto a metà: rimetto la versione di prima."
     ripristina "$STATO/in-corso.elenco" || true
+    if gestito && ! in_salute; then dire "Dopo il ripristino la pagina non risponde ancora."; fi
   fi
 
   esegui_sistema || dire "Configurazione di sistema non riuscita: riprovo al prossimo giro."
