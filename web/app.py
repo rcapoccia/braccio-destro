@@ -820,7 +820,7 @@ def _elimina_documenti_chat(cid):
 AVVIO = time.time()
 
 
-@app.get("/api/stato")
+@app.get("/api/sistema")
 def stato_sistema():
     """Stato del sistema per Roberto (Impostazioni): versione, librerie, scatola, memoria. Nessun dato personale."""
     import importlib.util

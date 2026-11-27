@@ -692,7 +692,7 @@ async function avvia() {
 async function caricaStato() {
   const box = $("#stato-sistema"); box.textContent = "Controllo…";
   try {
-    const s = await api("/api/stato", { attesa: 30000 });
+    const s = await api("/api/sistema", { attesa: 30000 });
     const ok = b => b ? "✅" : "❌";
     const lib = Object.entries(s.librerie).map(([k, v]) => ok(v) + " " + k).join("   ");
     const m = s.memoria_mb || {};
