@@ -847,7 +847,14 @@ def stato_sistema():
                     memoria_mb[k] = int(v.split()[0]) // 1024
     except OSError:
         pass
-    return {"versione": versione, "avviata_da_minuti": int((time.time() - AVVIO) / 60), "librerie": librerie,
+    aggiornamenti = {}
+    try:
+        with open("/run/vega-aggiornamenti/stato.json") as f:
+            aggiornamenti = json.load(f)
+        versione = aggiornamenti.get("versione") or versione
+    except (OSError, ValueError):
+        pass
+    return {"aggiornamenti": aggiornamenti, "versione": versione, "avviata_da_minuti": int((time.time() - AVVIO) / 60), "librerie": librerie,
             "scatola": scatola_ok, "memoria_mb": memoria_mb, "cervello": agente.cervello()[1]}
 
 

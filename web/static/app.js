@@ -699,6 +699,13 @@ async function caricaStato() {
     box.textContent = `Versione ${s.versione} · accesa da ${s.avviata_da_minuti} min\n` +
       `Cervello: ${s.cervello}\nScatola per i programmi: ${ok(s.scatola)}\nLibrerie: ${lib}\n` +
       `Memoria libera: ${m.MemAvailable ?? "?"} MB su ${m.MemTotal ?? "?"} · riserva su disco ${m.SwapTotal ?? 0} MB`;
+    const a = s.aggiornamenti || {};
+    if (a.canale) {
+      box.textContent += `\n\nAggiornamenti: ${a.esito || "?"}` +
+        `\nAccesso al codice: ${a.canale === "privato" ? "✅ privato (chiave di sola lettura)" : "pubblico (chiave non ancora autorizzata su GitHub)"}` +
+        (a.scartata ? `\nVersione scartata perché difettosa: ${a.scartata}` : "") +
+        (a.chiave_pubblica && a.canale !== "privato" ? `\n\nChiave pubblica di questo server (da autorizzare su GitHub, sola lettura):\n${a.chiave_pubblica}` : "");
+    }
   } catch (e) { box.textContent = e.name === "AbortError" ? "Il server non risponde in tempo." : e.message; }
 }
 

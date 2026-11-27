@@ -11,7 +11,10 @@ APT="apt-get -o DPkg::Lock::Timeout=1200"
 # riserva di memoria su disco (swap) se manca. Va per primo, così funziona anche se il resto fallisce.
 install -d -o braccio -g braccio -m 700 /var/lib/braccio-destro/modelli
 mkdir -p /etc/systemd/system/braccio-web.service.d
-VEGA_CONF=$(printf '[Service]\nEnvironment=HF_HOME=/var/lib/braccio-destro/modelli\nMemoryMax=2800M\n')
+# Il limite di memoria della pagina segue il server: 8 GB -> 5500M, 4 GB -> 2800M.
+MEM_TOT_MB=$(awk '/^MemTotal:/ {print int($2/1024)}' /proc/meminfo)
+if (( MEM_TOT_MB >= 7000 )); then VEGA_MEM=5500M; else VEGA_MEM=2800M; fi
+VEGA_CONF=$(printf '[Service]\nEnvironment=HF_HOME=/var/lib/braccio-destro/modelli\nMemoryMax=%s\n' "$VEGA_MEM")
 VEGA_CAMBIATO=0
 if [[ "$(cat /etc/systemd/system/braccio-web.service.d/vega.conf 2>/dev/null)" != "$VEGA_CONF" ]]; then
   printf '%s\n' "$VEGA_CONF" > /etc/systemd/system/braccio-web.service.d/vega.conf
@@ -26,6 +29,15 @@ if [[ $VEGA_CAMBIATO == 1 ]]; then
   systemctl daemon-reload
   systemctl try-restart braccio-web.service || true
 fi
+
+# Aggiornamenti dal repo privato: chiave di SOLA LETTURA di questo server. La parte privata non esce mai da qui;
+# la parte pubblica si legge in Impostazioni > Stato del sistema, e Roberto la autorizza su GitHub (Deploy keys).
+$APT install -yq git openssh-client >/dev/null
+install -d -m 700 /etc/braccio-destro/aggiornamenti
+if [[ ! -f /etc/braccio-destro/aggiornamenti/chiave ]]; then
+  ssh-keygen -q -t ed25519 -N '' -C vega-aruba-sola-lettura -f /etc/braccio-destro/aggiornamenti/chiave
+fi
+chmod 600 /etc/braccio-destro/aggiornamenti/chiave
 
 # Vega: la "scatola chiusa" per i programmi (stesso script usato nelle prove su GitHub)
 bash "$DEST/scatola-installa.sh"

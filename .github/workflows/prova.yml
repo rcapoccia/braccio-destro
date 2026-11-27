@@ -4,11 +4,15 @@ name: Prova Vega
 
 on:
   push:
-    branches: [main]
+    branches: [main, produzione, 'lavoro/**']
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: prova-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/produzione' }}
 
 jobs:
   segreti:
@@ -50,6 +54,7 @@ jobs:
 
       - name: Prove di Vega con dati finti
         run: |
+          echo "Macchina di prova: $(nproc) processori, $(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo) MB"
           export MISTRAL_API_KEY=finta IMAP_HOST=x IMAP_USER=x IMAP_PASS=x
           /opt/braccio-destro/venv/bin/python tests/test_moduli.py
           /opt/braccio-destro/venv/bin/python tests/test_agente.py
@@ -62,7 +67,7 @@ jobs:
           sudo install -d -m 755 /opt/prove && sudo cp -r tests scatola.py moduli.py /opt/prove/ && sudo chmod -R a+rX /opt/prove
           sudo -u braccio /opt/braccio-destro/venv/bin/python /opt/prove/tests/test_scatola.py
 
-      - name: Pagina (servizio vero, stessi limiti di memoria del server)
+      - name: Pagina (servizio vero, limiti di memoria del server Aruba 8 GB)
         run: |
           TOKEN=$(python3 -c "import secrets;print(secrets.token_urlsafe(32))")
           echo "::add-mask::$TOKEN"
@@ -80,7 +85,7 @@ jobs:
           ProtectHome=true
           ReadWritePaths=/var/lib/braccio-destro
           PrivateTmp=true
-          MemoryMax=2800M
+          MemoryMax=5500M
           U
           sudo systemctl daemon-reload && sudo systemctl start braccio-web
           TOKEN_PROVA=$TOKEN /opt/braccio-destro/venv/bin/python /opt/prove/tests/test_pagina.py
@@ -88,3 +93,25 @@ jobs:
       - name: Registro della pagina (solo se qualcosa va storto)
         if: failure()
         run: sudo journalctl -u braccio-web -u vega-scatola --no-pager -n 120
+
+  aggiornamento:
+    name: Aggiornamento automatico (ritorno indietro, versioni rifiutate)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Finto GitHub e finto servizio
+        run: sudo bash tests/test_aggiornamento.sh
+
+  verificata:
+    # Solo quando TUTTI i collaudi sono verdi sul ramo "produzione": la versione diventa installabile dal server.
+    name: Versione verificata (il server installa solo questa)
+    if: github.ref == 'refs/heads/produzione' && github.event_name == 'push'
+    needs: [segreti, server, aggiornamento]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Segna la versione come verificata
+        run: git push --force origin "$GITHUB_SHA:refs/heads/produzione-verificata"

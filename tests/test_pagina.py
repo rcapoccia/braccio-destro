@@ -1,7 +1,7 @@
 """
 Prova della pagina VERA (servizio systemd braccio-web, come sul server, stessi limiti di memoria), con dati finti.
 Verifica: la pagina risponde, lo stato del sistema è sano (librerie, scatola), i documenti si aprono in fretta,
-la memoria usata sta nei limiti del server da 4 GB.
+la memoria usata sta nei limiti del server Aruba da 8 GB.
 """
 import json
 import os
@@ -83,9 +83,11 @@ def main():
     time.sleep(20)
     m = memoria_mb()
     print("Memoria della pagina (MB):", m)
-    print(f"::notice title=Memoria pagina::attuale {m.get('MemoryCurrent')} MB, picco {m.get('MemoryPeak')} MB (limite 2800, server 4 GB)")
-    if (m.get("MemoryPeak") or 0) > 2600:
-        errori.append(f"la pagina usa troppa memoria per il server da 4 GB: picco {m.get('MemoryPeak')} MB")
+    # Profilo Aruba 8 GB: la pagina (con il velo) deve lasciare posto a browser, scatola e sistema.
+    tetto = int(os.environ.get("TETTO_PICCO_MB", "4000"))
+    print(f"::notice title=Memoria pagina::attuale {m.get('MemoryCurrent')} MB, picco {m.get('MemoryPeak')} MB (tetto di prova {tetto}, limite del servizio 5500, server 8 GB)")
+    if (m.get("MemoryPeak") or 0) > tetto:
+        errori.append(f"la pagina usa troppa memoria per il server da 8 GB: picco {m.get('MemoryPeak')} MB (tetto {tetto})")
     print("\nESITO:", "OK" if not errori else "ERRORI:\n- " + "\n- ".join(errori))
     for e in errori:
         print(f"::error title=Pagina::{e}")
