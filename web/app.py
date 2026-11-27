@@ -70,11 +70,12 @@ os.makedirs(DATI, mode=0o700, exist_ok=True)
 FILE_CREDENZIALI = os.path.join(DATI, "credenziali.json")
 FILE_ATTIVAZIONE = os.path.join(DATI, "attivazione.json")
 FILE_CHAT = os.path.join(DATI, "chat.json")
+FILE_SESSIONI = os.path.join(DATI, "sessioni.json")   # solo impronte dei token (sha256), mai i token
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 blocco = threading.Lock()
 lavoratori = ThreadPoolExecutor(max_workers=2)
-sessioni = {}      # token -> scadenza
+sessioni = {}      # impronta del token -> scadenza (salvate su disco: un riavvio non fa uscire)
 sfide = {}         # token -> (sfida, scadenza)
 lavori = {}        # id -> {"stato", "risultato"}
 documenti = {}     # id -> (nome, dati, scadenza)
@@ -96,11 +97,29 @@ def _scrivi_json(percorso, dati):
     os.replace(tmp, percorso)
 
 
+sessioni.update({k: v for k, v in _leggi_json(FILE_SESSIONI, {}).items() if isinstance(v, (int, float))})
+
+
+def _impronta(token):
+    return hashlib.sha256(token.encode()).hexdigest() if token else ""
+
+
+def _sessione_valida(token):
+    return sessioni.get(_impronta(token), 0) > time.time()
+
+
+blocco_sessioni = threading.Lock()
+
+
+def _salva_sessioni():
+    with blocco_sessioni:
+        _scrivi_json(FILE_SESSIONI, {k: v for k, v in sessioni.items() if v > time.time()})
+
+
 def _pulisci():
     ora = time.time()
-    for d in (sessioni,):
-        for k in [k for k, v in d.items() if v < ora]:
-            d.pop(k, None)
+    for k in [k for k, v in sessioni.items() if v < ora]:
+        sessioni.pop(k, None)
     for k in [k for k, v in sfide.items() if v[1] < ora]:
         sfide.pop(k, None)
     for k in [k for k, v in documenti.items() if v[2] < ora]:
@@ -121,7 +140,7 @@ async def protezione(request: Request, call_next):
     libere = ("/api/stato", "/api/registra/", "/api/accesso/")
     if percorso.startswith("/api/") and not percorso.startswith(libere):
         token = request.cookies.get("sessione", "")
-        if sessioni.get(token, 0) < time.time():
+        if not _sessione_valida(token):
             return JSONResponse({"errore": "Accesso scaduto. Entra di nuovo."}, status_code=401)
     risposta = await call_next(request)
     risposta.headers["Cache-Control"] = "no-store"
@@ -130,7 +149,8 @@ async def protezione(request: Request, call_next):
 
 def _apri_sessione(risposta):
     token = secrets.token_urlsafe(32)
-    sessioni[token] = time.time() + DURATA_SESSIONE
+    sessioni[_impronta(token)] = time.time() + DURATA_SESSIONE
+    _salva_sessioni()
     risposta.set_cookie("sessione", token, max_age=DURATA_SESSIONE, httponly=True, secure=True, samesite="strict")
 
 
@@ -151,7 +171,7 @@ def _prendi_sfida(request):
 @app.get("/api/stato")
 def stato(request: Request):
     return {"registrato": bool(_leggi_json(FILE_CREDENZIALI, [])),
-            "dentro": sessioni.get(request.cookies.get("sessione", ""), 0) > time.time()}
+            "dentro": _sessione_valida(request.cookies.get("sessione", ""))}
 
 
 def _codice_valido(codice):
@@ -245,7 +265,8 @@ async def accesso_fine(request: Request):
 
 @app.post("/api/esci")
 def esci(request: Request):
-    sessioni.pop(request.cookies.get("sessione", ""), None)
+    sessioni.pop(_impronta(request.cookies.get("sessione", "")), None)
+    _salva_sessioni()
     risposta = JSONResponse({"ok": True})
     risposta.delete_cookie("sessione")
     return risposta

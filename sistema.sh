@@ -11,17 +11,21 @@ APT="apt-get -o DPkg::Lock::Timeout=1200"
 # riserva di memoria su disco (swap) se manca. Va per primo, così funziona anche se il resto fallisce.
 install -d -o braccio -g braccio -m 700 /var/lib/braccio-destro/modelli
 mkdir -p /etc/systemd/system/braccio-web.service.d
-cat > /etc/systemd/system/braccio-web.service.d/vega.conf <<'U'
-[Service]
-Environment=HF_HOME=/var/lib/braccio-destro/modelli
-MemoryMax=2800M
-U
+VEGA_CONF=$(printf '[Service]\nEnvironment=HF_HOME=/var/lib/braccio-destro/modelli\nMemoryMax=2800M\n')
+VEGA_CAMBIATO=0
+if [[ "$(cat /etc/systemd/system/braccio-web.service.d/vega.conf 2>/dev/null)" != "$VEGA_CONF" ]]; then
+  printf '%s\n' "$VEGA_CONF" > /etc/systemd/system/braccio-web.service.d/vega.conf
+  VEGA_CAMBIATO=1
+fi
 if [[ -z "$(swapon --noheadings)" && ! -f /swapfile ]] && [[ $(df --output=avail -k / | tail -1) -gt 8000000 ]]; then
   fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile >/dev/null && swapon /swapfile
   grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
 fi
-systemctl daemon-reload
-systemctl try-restart braccio-web.service || true
+# si riavvia la pagina solo se la configurazione è cambiata davvero (un riavvio interrompe i lavori in corso)
+if [[ $VEGA_CAMBIATO == 1 ]]; then
+  systemctl daemon-reload
+  systemctl try-restart braccio-web.service || true
+fi
 
 # Schermo virtuale + browser per i collegamenti (Navisio, intermediari.ai)
 $APT install -yq xvfb x11vnc novnc websockify fonts-dejavu-core >/dev/null
