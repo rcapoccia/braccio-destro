@@ -145,7 +145,8 @@ function testoVega(testo) {
 
 function schedaVega(v) {
   const m = el("div", "msg braccio vega");
-  m.append(el("span", "titolo-r", "Vega"));
+  const firma = el("div", "firma"); firma.append(el("span", "logo-v piccolo", "V"), el("b", "", "Vega"));
+  m.append(firma);
   m.append(testoVega(v.testo || ""));
   if (v.documenti && v.documenti.length) {
     const f = el("div", "file");
@@ -161,7 +162,7 @@ function schedaVega(v) {
     const d = el("details", "passi");
     d.append(el("summary", "", "Cosa ho fatto (" + v.passi.length + " passi)"));
     const ol = el("ol", "");
-    v.passi.forEach(p => ol.append(el("li", "", p)));
+    v.passi.forEach(p => ol.append(el("li", "fatto", p)));
     d.append(ol); m.append(d);
   }
   m.append(el("span", "ora", v.ora));
@@ -341,9 +342,7 @@ function schedaParere(v) {
 async function caricaChat() {
   const chat = await api("/api/chat");
   $("#messaggi").replaceChildren();
-  if (!chat.length) $("#messaggi").append(el("div", "msg braccio",
-    "Ciao Roberto. Scrivimi cosa devo fare, ad esempio: «cerca le polizze e i preventivi di E-ALL». " +
-    "Per lavorare su una mail, sceglila dalla sezione Posta."));
+  $("#benvenuto").classList.toggle("nascosto", chat.length > 0);   // chat vuota: saluto con suggerimenti
   chat.forEach(disegnaMessaggio);
   scorriGiu();
 }
@@ -373,7 +372,7 @@ async function inviaIstruzione(ev) {
       if (s.passi && s.passi.length) {
         attesa.replaceChildren(el("div", "", "Vega sta lavorando… (puoi chiudere l'app, continua da sola)"));
         const ol = el("ol", "passi-vivi");
-        s.passi.slice(-6).forEach((p, i, a) => ol.append(el("li", i === a.length - 1 ? "ora-in-corso" : "", p)));
+        s.passi.slice(-6).forEach((p, i, a) => ol.append(el("li", i === a.length - 1 ? "in-corso" : "fatto", p)));
         attesa.append(ol); scorriGiu();
       }
     }
@@ -387,9 +386,10 @@ function togliContesto() { mailScelta = null; $("#contesto").classList.add("nasc
 
 // --- Viste ------------------------------------------------------------------------
 async function mostraVista(nome, senzaCaricare) {
-  const inAltro = ["posta", "biblioteca", "collegamenti"].includes(nome);
-  $$("nav button[data-vista]").forEach(b => b.classList.toggle("attivo",
-    b.dataset.vista === nome || (b.dataset.vista === "altro" && inAltro)));
+  $$("nav button[data-vista]").forEach(b => b.classList.toggle("attivo", b.dataset.vista === nome));
+  const voce = $(`nav button[data-vista="${nome}"] span`);
+  $("#titolo-vista").textContent = nome === "chat" ? "Vega" : (voce ? voce.textContent : "Vega");
+  chiudiMenu();
   $$(".vista").forEach(v => v.classList.add("nascosto"));
   $("#vista-" + nome).classList.remove("nascosto");
   $("#barra").classList.toggle("nascosto", nome !== "chat");
@@ -514,7 +514,7 @@ async function caricaBozze() {
 }
 
 async function contaBozze() {
-  try { const b = await api("/api/bozze"); $("#num-bozze").textContent = b.length ? String(b.length) : ""; } catch (_) {}
+  try { const b = await api("/api/bozze"); $("#num-bozze").textContent = $("#num-bozze-m").textContent = b.length ? String(b.length) : ""; } catch (_) {}
 }
 
 async function caricaPosta() {
@@ -612,8 +612,11 @@ $("#entra").onclick = entra;
 $("#mostra-codice").onclick = e => { e.preventDefault(); $("#primo-accesso").classList.remove("nascosto"); $("#accesso").classList.add("nascosto"); };
 $("#esci").onclick = async () => { await api("/api/esci", { method: "POST" }).catch(() => {}); mostraIngresso(); };
 $$("nav button[data-vista]").forEach(b => b.onclick = () => mostraVista(b.dataset.vista));
-$$(".voce-menu").forEach(b => b.onclick = () => mostraVista(b.dataset.vai));
-$("#esci-pc").onclick = () => $("#esci").click();
+// Menu: fisso a sinistra su PC, a cassetto sul telefono
+function chiudiMenu() { document.body.classList.remove("menu-aperto"); $("#velo-menu").classList.add("nascosto"); }
+$("#apri-menu").onclick = () => { document.body.classList.add("menu-aperto"); $("#velo-menu").classList.remove("nascosto"); };
+$("#velo-menu").onclick = chiudiMenu;
+$("#vai-bozze").onclick = () => mostraVista("bozze");
 $$(".suggerimenti button").forEach(b => b.onclick = () => { $("#testo").value = b.dataset.testo; $("#testo").focus(); });
 // Il benvenuto compare solo a chat vuota
 new MutationObserver(() => $("#benvenuto").classList.toggle("nascosto", $("#messaggi").children.length > 0))

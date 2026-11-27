@@ -1,7 +1,8 @@
-:root{--testo:#1d1d1f;--secondario:#6e6e73;--bordo:#e5e5e2;--fondo:#f7f7f5;--carta:#fff;--accento:#1a5fb4;--accento-chiaro:#e8f0fb;--avviso:#fdf3dc;--avviso-testo:#7a4d00;--errore:#b42318;--ok:#2b7a2b}
-@media (prefers-color-scheme:dark){:root{--testo:#ececec;--secondario:#a3a3a3;--bordo:#333;--fondo:#141414;--carta:#1e1e1e;--accento:#78a9ec;--accento-chiaro:#1c2a3d;--avviso:#3a2e12;--avviso-testo:#f3cf83;--errore:#f28b82;--ok:#8fd18f}}
+@font-face{font-family:"Geist";src:url(/geist.woff2) format("woff2");font-weight:100 900;font-display:swap}
+:root{--testo:#14213a;--secondario:#5d6a80;--bordo:#e2e6ec;--fondo:#f4f6f9;--carta:#fff;--accento:#0b5d6b;--accento-chiaro:#e2f0f1;--approva:#0f7b57;--avviso:#fff3d4;--avviso-testo:#7d5200;--errore:#c0362c;--ok:#0f7b57;--ombra:0 1px 2px rgba(20,33,58,.06),0 4px 16px rgba(20,33,58,.05)}
+@media (prefers-color-scheme:dark){:root{--testo:#e8edf4;--secondario:#9aa6b8;--bordo:#2a3343;--fondo:#0f1622;--carta:#172131;--accento:#5cc2cf;--accento-chiaro:#163640;--approva:#3fc08f;--avviso:#3a2f12;--avviso-testo:#f1cf7f;--errore:#f08a80;--ok:#3fc08f;--ombra:0 1px 2px rgba(0,0,0,.3)}}
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--testo);background:var(--fondo);font-size:16px}
+html,body{margin:0;height:100%;font-family:"Geist",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--testo);background:var(--fondo);font-size:16px}
 .nascosto{display:none!important}
 button{font:inherit;padding:10px 14px;border-radius:10px;border:1px solid var(--bordo);background:var(--carta);color:var(--testo);cursor:pointer}
 button.primario{background:var(--accento);border-color:var(--accento);color:#fff}
@@ -110,78 +111,113 @@ details > summary.r-gruppo{cursor:pointer}
 .passi-vivi{font-size:13px}
 .passi-vivi li.ora-in-corso{color:var(--testo,#222);font-weight:600}
 
-/* ===== Grafica semplificata (27/11): menu laterale su PC, barra in basso su telefono ===== */
-html,body{-webkit-font-smoothing:antialiased}
-svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
-.logo-v{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;background:var(--accento);color:#fff;font-weight:600;font-size:16px}
-.logo-v.grande{width:56px;height:56px;border-radius:16px;font-size:28px;margin:0 auto}
-.marchio{display:flex;align-items:center;gap:10px}
-.marchio .titolo{font-weight:600;font-size:18px;letter-spacing:-.01em}
-.titolo-vista{font-size:22px;font-weight:600;margin:4px 0 2px;letter-spacing:-.01em}
-.sezione{font-size:13px;font-weight:600;color:var(--secondario);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 0}
-.stato{font-size:14px;margin:0}
-.spiega{font-size:13px;color:var(--secondario);line-height:1.45}
-.spiega summary{cursor:pointer;color:var(--accento)}
-.scheda{border-radius:16px;padding:14px 16px;gap:10px}
 
-#app{display:grid;grid-template-columns:1fr;grid-template-rows:auto 1fr auto auto;height:100vh;height:100dvh}
-header{grid-row:1;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top))}
-main{grid-row:2;padding:16px 14px 24px}
-footer{grid-row:3;border-top:none;background:var(--fondo);padding:6px 12px 10px}
-nav{grid-row:4;justify-content:space-around;gap:0;padding:4px 6px;padding-bottom:max(6px,env(safe-area-inset-bottom));border-bottom:none;border-top:1px solid var(--bordo);overflow:visible}
-nav button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;padding:6px 10px;border-radius:12px;position:relative;color:var(--secondario);min-width:64px}
-nav button.attivo{background:none;color:var(--accento)}
-nav button .conta,.conta:empty{display:none}
-nav button .conta:not(:empty){display:block;position:absolute;top:2px;right:12px;background:#d92d20;color:#fff;font-size:10px;font-weight:600;border-radius:10px;padding:1px 5px;line-height:1.3}
-.solo-pc{display:none!important}
-.esci-pc{margin-top:auto}
+/* ===== Grafica 2 (27/11): stile delle app AI attuali, menu laterale / cassetto ===== */
+html,body{-webkit-font-smoothing:antialiased;font-feature-settings:"tnum" 0}
+body{font-size:15px}
+:focus-visible{outline:2px solid var(--accento);outline-offset:2px}
+svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+button{border-radius:10px}
+button.primario{font-weight:500}
+input,textarea{border-radius:10px}
+.logo-v{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:10px;background:var(--accento);color:#fff;font-weight:650;font-size:16px;flex:none}
+.logo-v.piccolo{width:22px;height:22px;border-radius:7px;font-size:12px}
+.logo-v.grande{width:52px;height:52px;border-radius:15px;font-size:26px;margin:0 auto}
+.conta:empty{display:none}
+.conta{background:var(--errore);color:#fff;font-size:11px;font-weight:600;border-radius:10px;padding:1px 6px;line-height:1.4;margin-left:auto}
+
+#app{display:grid;grid-template-columns:260px 1fr;grid-template-rows:1fr auto;height:100vh;height:100dvh}
+.barra-alta{display:none}
+#menu{grid-row:1/3;grid-column:1;display:flex;flex-direction:column;gap:2px;padding:16px 12px;background:var(--carta);border-right:1px solid var(--bordo);overflow-y:auto}
+#menu .marchio{display:flex;align-items:center;gap:10px;padding:4px 8px 20px}
+#menu .marchio b{display:block;font-size:17px;font-weight:650;letter-spacing:-.01em}
+#menu .marchio small{display:block;font-size:12px;color:var(--secondario)}
+#menu button{display:flex;align-items:center;gap:12px;width:100%;border:none;background:none;color:var(--secondario);font-size:14.5px;padding:9px 10px;text-align:left}
+#menu button:hover{background:var(--fondo);color:var(--testo)}
+#menu button.attivo{background:var(--accento-chiaro);color:var(--accento);font-weight:500}
+.menu-fondo{margin-top:auto;padding-top:12px;border-top:1px solid var(--bordo);display:flex;flex-direction:column;gap:2px}
+main{grid-row:1;grid-column:2;padding:32px 32px 16px;background:var(--fondo)}
+footer{grid-row:2;grid-column:2;background:var(--fondo);border-top:none;padding:6px 32px 20px}
+.vista{max-width:740px;gap:16px}
+.titolo-vista{font-size:24px;font-weight:650;letter-spacing:-.02em;margin:0 0 4px}
+.sezione{font-size:15px;font-weight:600;color:var(--testo);margin:18px 0 0}
+.aiuto{font-size:13.5px;line-height:1.5}
+.stato{font-size:14px;margin:0}
+.spiega{font-size:13px;color:var(--secondario);line-height:1.5}
+.spiega summary{cursor:pointer;color:var(--accento);width:max-content}
+.scheda{border-radius:14px;padding:16px;gap:10px;box-shadow:var(--ombra);border-color:transparent}
+
+/* conversazione: Vega senza fumetto, Roberto in un fumetto morbido */
+#messaggi{display:flex;flex-direction:column;gap:22px}
+.msg{font-size:15px;line-height:1.6;max-width:100%}
+.msg.roberto{align-self:flex-end;max-width:80%;background:var(--carta);border:1px solid var(--bordo);border-radius:18px 18px 6px 18px;padding:10px 15px}
+.msg.braccio{align-self:stretch;background:none;border:none;padding:0}
+.msg.braccio.errore-msg{background:#fdecea;color:var(--errore);border-radius:12px;padding:12px 14px}
+.firma{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:14px}
+.msg .ora{font-size:11.5px;color:var(--secondario);margin-top:6px}
+.vega-testo strong{font-weight:600}
+.file a{border-radius:10px;background:var(--carta)}
+
+/* il lavoro di Vega: passi come cronologia con spunte (si vede cosa ha fatto) */
+.passi{margin-top:10px}
+.passi summary{cursor:pointer;font-size:13px;color:var(--secondario);font-weight:500;width:max-content}
+.passi ol,.passi-vivi{list-style:none;margin:8px 0 0;padding:0 0 0 4px;border-left:2px solid var(--bordo)}
+.passi li,.passi-vivi li{position:relative;padding:3px 0 3px 18px;font-size:13px;color:var(--secondario)}
+.passi li::before,.passi-vivi li::before{content:"";position:absolute;left:-7px;top:8px;width:12px;height:12px;border-radius:50%;background:var(--carta);border:2px solid var(--approva)}
+li.fatto::before{background:var(--approva)!important}
+li.in-corso{color:var(--testo)!important;font-weight:500}
+li.in-corso::before{border-color:var(--accento)!important;border-right-color:transparent!important;animation:gira .9s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){li.in-corso::before{animation:none}}
+.attesa{align-self:stretch;font-size:14px;color:var(--secondario);padding:0;background:none}
+
+/* bozza = punto di controllo: si approva qui */
+.bozza{border-radius:16px;padding:18px;box-shadow:var(--ombra);border:1px solid var(--bordo);border-left:4px solid var(--avviso-testo)}
+.b-titolo{font-size:16px;font-weight:600}
+.b-stato{font-weight:500}
+.b-testo{min-height:110px;background:var(--fondo)}
+.b-invia{background:var(--approva)!important;border-color:var(--approva)!important;padding:10px 18px}
+.b-esito:empty,.b-allegati:empty,.b-controlli:empty{display:none}
 
 /* campo di scrittura */
-#modulo{background:var(--carta);border:1px solid var(--bordo);border-radius:24px;padding:6px 6px 6px 8px;align-items:flex-end;gap:4px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
-#testo{border:none;background:none;padding:9px 4px;max-height:180px}
+#modulo{max-width:740px;background:var(--carta);border:1px solid var(--bordo);border-radius:22px;padding:8px 8px 8px 10px;align-items:flex-end;gap:6px;box-shadow:var(--ombra)}
+#testo{border:none;background:none;padding:9px 2px;max-height:200px;font-size:15px}
 #testo:focus{outline:none}
-.graffetta{display:flex;padding:8px;color:var(--secondario);border-radius:50%}
-#invia{width:40px;height:40px;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center;flex:none}
-#invia svg{stroke:#fff;width:20px;height:20px}
-#contesto{max-width:760px;margin:0 auto 6px}
+.graffetta{display:flex;padding:8px;color:var(--secondario);border-radius:10px;cursor:pointer}
+.graffetta:hover{background:var(--fondo)}
+#invia{width:38px;height:38px;border-radius:12px;padding:0;display:flex;align-items:center;justify-content:center;flex:none}
+#invia svg{stroke:#fff;width:18px;height:18px;stroke-width:2.2}
+#contesto,#file-scelti{max-width:740px}
 
-/* chat */
-.vista{max-width:760px;gap:14px}
-#messaggi{display:flex;flex-direction:column;gap:14px}
-.msg{font-size:15.5px;line-height:1.5}
-.msg.roberto{border-radius:18px 18px 4px 18px;padding:10px 14px}
-.msg.braccio{border-radius:4px 18px 18px 18px;padding:12px 16px;max-width:100%}
-.msg.vega{border:none;background:var(--carta);box-shadow:0 1px 2px rgba(0,0,0,.05)}
-.msg .titolo-r{font-size:13px;color:var(--accento);font-weight:600}
-.vega-testo strong{font-weight:600}
-.passi summary{font-weight:500}
-.attesa{background:var(--carta);border-radius:14px;padding:10px 14px}
-#benvenuto{text-align:center;padding:8vh 8px 0;display:flex;flex-direction:column;gap:10px}
-#benvenuto h2{font-size:22px;font-weight:600;margin:6px 0 0}
-.suggerimenti{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-.suggerimenti button{text-align:left;font-size:14px;padding:12px 14px;border-radius:14px;line-height:1.3}
+/* chat vuota */
+#benvenuto{text-align:left;padding:10vh 0 0;display:flex;flex-direction:column;gap:10px}
+#benvenuto .logo-v.grande{margin:0}
+#benvenuto h2{font-size:28px;font-weight:650;letter-spacing:-.025em;margin:8px 0 0;line-height:1.2}
+#benvenuto .aiuto{font-size:15px;max-width:56ch}
+.suggerimenti{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.suggerimenti button{text-align:left;font-size:14px;padding:14px 16px;border-radius:14px;line-height:1.35;background:var(--carta);border:1px solid var(--bordo)}
+.suggerimenti button:hover{border-color:var(--accento);color:var(--accento)}
 
-/* menu "Altro" (telefono) */
-.voce-menu{display:flex;align-items:center;gap:14px;text-align:left;padding:14px 16px;border-radius:16px;width:100%}
-.voce-menu svg{color:var(--accento)}
-.voce-menu span{display:flex;flex-direction:column;font-weight:500}
-.voce-menu small{font-weight:400;font-size:13px;color:var(--secondario);margin-top:2px}
-
-/* PC: menu laterale fisso, niente barra in alto */
-@media (min-width:900px){
-  #app{grid-template-columns:232px 1fr;grid-template-rows:1fr auto}
-  header{display:none}
-  nav{grid-row:1/3;grid-column:1;flex-direction:column;justify-content:flex-start;gap:2px;padding:18px 12px;border-top:none;border-right:1px solid var(--bordo)}
-  nav .marchio{padding:4px 10px 18px}
-  nav button{flex-direction:row;font-size:15px;gap:12px;padding:10px 12px;min-width:0;width:100%;justify-content:flex-start}
-  nav button.attivo{background:var(--accento-chiaro)}
-  nav button .conta:not(:empty){position:static;margin-left:auto}
-  .solo-pc{display:flex!important}
-  .solo-mobile{display:none!important}
-  main{grid-row:1;grid-column:2;padding:28px 32px}
-  footer{grid-row:2;grid-column:2;padding:8px 32px 18px}
-  .suggerimenti{grid-template-columns:1fr 1fr}
+/* telefono: barra in alto e menu a cassetto */
+@media (max-width:899px){
+  #app{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}
+  .barra-alta{display:flex;grid-row:1;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;padding-top:max(8px,env(safe-area-inset-top));background:var(--fondo)}
+  #titolo-vista{font-weight:600;font-size:16px}
+  button.icona{border:none;background:none;padding:8px;position:relative;color:var(--testo);display:flex}
+  button.icona svg{width:22px;height:22px}
+  button.icona .conta{position:absolute;top:2px;right:0}
+  #menu{position:fixed;inset:0 auto 0 0;width:82%;max-width:320px;z-index:20;transform:translateX(-102%);transition:transform .22s ease;padding-top:max(16px,env(safe-area-inset-top));box-shadow:0 0 40px rgba(0,0,0,.18)}
+  body.menu-aperto #menu{transform:none}
+  #velo-menu{position:fixed;inset:0;background:rgba(15,22,34,.35);z-index:15}
+  main{grid-row:2;grid-column:1;padding:12px 16px 12px}
+  footer{grid-row:3;grid-column:1;padding:4px 10px;padding-bottom:max(10px,env(safe-area-inset-bottom))}
+  #benvenuto{padding-top:4vh}
+  #benvenuto h2{font-size:24px}
+  .suggerimenti{grid-template-columns:1fr}
+  .msg.roberto{max-width:88%}
 }
-@media (max-width:380px){.suggerimenti{grid-template-columns:1fr}}
-.b-esito:empty,.b-allegati:empty,.b-controlli:empty{display:none}
-.b-testo{min-height:120px}
+.passi ol,.passi-vivi{padding-left:0;margin-left:5px}
+.passi li,.passi-vivi li{padding:4px 0 4px 16px}
+.passi li::before,.passi-vivi li::before{left:-6px;top:9px;width:10px;height:10px}
+.bozza{border-left:1px solid var(--bordo)}
+.b-testa{padding-bottom:4px}
