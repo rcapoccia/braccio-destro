@@ -1,0 +1,89 @@
+# Prove automatiche di Vega su un server identico a quello Aruba (Ubuntu 24.04, stessi servizi e limiti),
+# SOLO con dati finti. Se qui non è tutto verde, non si pubblica.
+name: Prova Vega
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  segreti:
+    name: Nessuna chiave nel codice (gitleaks)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scansione segreti
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz | tar xz gitleaks
+          ./gitleaks git --redact --no-banner .
+
+  server:
+    name: Server come Aruba
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Librerie (come sul server)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq python3-venv >/dev/null
+          sudo useradd --system --home /var/lib/braccio-destro --shell /usr/sbin/nologin braccio
+          sudo install -d -o braccio -g braccio -m 700 /var/lib/braccio-destro /var/lib/braccio-destro/web /var/lib/braccio-destro/modelli
+          sudo python3 -m venv /opt/braccio-destro/venv
+          sudo /opt/braccio-destro/venv/bin/pip install -q -r requirements-web.txt
+
+      - name: File di Vega (stesso elenco dell'aggiornamento automatico)
+        run: |
+          while read -r f; do
+            [[ -z "$f" ]] && continue
+            sudo install -D -m 644 "$f" "/opt/braccio-destro/$f"
+          done < file-elenco.txt
+          sudo install -d -m 750 -g braccio /etc/braccio-destro
+          printf 'IMAP_HOST=imap.esempio.invalid\nIMAP_USER=prova@esempio.invalid\nIMAP_PASS=finta\nSMTP_HOST=smtp.esempio.invalid\nMISTRAL_API_KEY=finta\n' | sudo tee /etc/braccio-destro/posta.env >/dev/null
+          sudo chown root:braccio /etc/braccio-destro/posta.env && sudo chmod 640 /etc/braccio-destro/posta.env
+
+      - name: Prove di Vega con dati finti
+        run: |
+          export MISTRAL_API_KEY=finta IMAP_HOST=x IMAP_USER=x IMAP_PASS=x
+          /opt/braccio-destro/venv/bin/python tests/test_moduli.py
+          /opt/braccio-destro/venv/bin/python tests/test_agente.py
+
+      - name: Scatola chiusa (servizio vero, isolamento vero)
+        run: |
+          sudo DEST=/opt/braccio-destro bash scatola-installa.sh
+          sleep 3
+          systemctl status vega-scatola --no-pager | head -5
+          sudo -u braccio /opt/braccio-destro/venv/bin/python tests/test_scatola.py
+
+      - name: Pagina (servizio vero, stessi limiti di memoria del server)
+        run: |
+          TOKEN=$(python3 -c "import secrets;print(secrets.token_urlsafe(32))")
+          echo "::add-mask::$TOKEN"
+          python3 -c "import hashlib,json,sys,time;print(json.dumps({hashlib.sha256(sys.argv[1].encode()).hexdigest(): time.time()+3600}))" "$TOKEN" | sudo -u braccio tee /var/lib/braccio-destro/web/sessioni.json >/dev/null
+          sudo tee /etc/systemd/system/braccio-web.service >/dev/null <<'U'
+          [Unit]
+          Description=Braccio destro - pagina web (prova)
+          [Service]
+          User=braccio
+          EnvironmentFile=/etc/braccio-destro/posta.env
+          Environment=WEB_DOMINIO=braccio.stital.it HF_HOME=/var/lib/braccio-destro/modelli
+          ExecStart=/opt/braccio-destro/venv/bin/uvicorn app:app --app-dir /opt/braccio-destro/web --host 127.0.0.1 --port 8080
+          NoNewPrivileges=true
+          ProtectSystem=strict
+          ProtectHome=true
+          ReadWritePaths=/var/lib/braccio-destro
+          PrivateTmp=true
+          MemoryMax=2800M
+          U
+          sudo systemctl daemon-reload && sudo systemctl start braccio-web
+          TOKEN_PROVA=$TOKEN /opt/braccio-destro/venv/bin/python tests/test_pagina.py
+
+      - name: Registro della pagina (solo se qualcosa va storto)
+        if: failure()
+        run: sudo journalctl -u braccio-web -u vega-scatola --no-pager -n 120

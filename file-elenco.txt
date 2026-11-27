@@ -27,3 +27,4 @@ web/static/geist.woff2
 memoria.py
 moduli.py
 scatola.py
+scatola-installa.sh
