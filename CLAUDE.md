@@ -3,17 +3,26 @@
 Queste regole valgono per **ogni** progetto: app, automazioni, agenti.
 Se una regola di progetto contraddice questo file, chiedi prima di procedere.
 
+## 0. Massima qualità, dentro le regole
+- Le regole di questo file (GDPR, costi, sicurezza) sono **confini**, non criteri per scegliere gli strumenti. Dentro i confini si sceglie sempre la soluzione **migliore** per lo scopo.
+- Se lo strumento che rispetta le regole non basta per lo scopo, non ci si accontenta: si cerca un modo conforme di usare quello migliore (es. anonimizzare i dati prima di mandarli a un modello più potente, ospitarlo in UE, firmare il DPA) e lo si propone a Roberto con pro, contro e costi.
+- Ragionare da persona che conosce il lavoro di Roberto: chiedersi a cosa serve davvero la richiesta, non solo cosa dice alla lettera.
+
 ## 1. Prima capire, poi proporre
 - Prima di proporre o modificare: leggi codice, funzionalità e logica esistenti (audit). Niente consigli "a caso", niente affermazioni non verificate.
 - Se qualcosa non è chiaro, chiedi. Non inventare requisiti.
 - Non ripetere domande su contesto già dato: cercalo prima nel repo e in questo file.
-- Prima di costruire qualcosa di nuovo (funzione, componente, agente, modello): cerca se esiste già una soluzione pronta e affidabile su GitHub, Hugging Face, registri di pacchetti (npm, PyPI) o marketplace di plugin/MCP. Presenta cosa hai trovato (licenza, manutenzione, sicurezza, costi) e proponi se riusarlo, adattarlo o costruire da zero. Ciò che si riusa passa comunque dalla regola 8.
+- **Le decisioni di Roberto sono scritte nel progetto** (sezione "Decisioni di Roberto" del suo `CLAUDE.md`, o `SPEC.md`). Si rileggono prima di costruire e non si cambiano di propria iniziativa: se una modifica le contraddice, si chiede prima.
+- **Specifica prima del codice** (metodo spec-driven, come GitHub Spec Kit): per ogni funzione nuova si scrive prima cosa deve fare, per chi e con quali limiti; Roberto la approva; poi si costruisce.
+- **Le scelte non decise da Roberto si dichiarano prima di costruirle** (architettura, fornitori, librerie, modo di funzionare) e, a lavoro consegnato, si riassumono in una riga "Scelte mie".
+- Prima di costruire qualcosa di nuovo (funzione, componente, agente, modello, metodo di lavoro): cerca se esiste già una soluzione pronta e affidabile su GitHub, Hugging Face, registri di pacchetti (npm, PyPI) o marketplace di plugin/MCP. Presenta cosa hai trovato (licenza, manutenzione, sicurezza, costi) e proponi se riusarlo, adattarlo o costruire da zero. Ciò che si riusa passa comunque dalla regola 8.
 - Non aspettare che sia Roberto a suggerire strumenti: all'inizio di ogni progetto (e almeno una volta al mese) proponi di tua iniziativa gli strumenti pertinenti di `STRUMENTI.md` e cerca novità (modelli, agenti, servizi) che riducano costi o errori.
 
 ## 2. Una cosa alla volta, con ok esplicito
 - Prima di creare progetti, server, account, database o qualunque risorsa: spiega **cosa** e **perché**, poi aspetta l'ok.
 - Prima di qualunque spesa: costo stimato + tetto di spesa bloccante impostato sul servizio. Senza tetto, non si attiva.
 - Passi piccoli e verificabili. Niente modifiche massive in un colpo solo.
+- **Regole degli agenti protette, sempre**: `CLAUDE.md`, `AGENTS.md` e gli altri file con le regole per gli agenti si modificano solo con l'ok esplicito di Roberto per quella modifica. Il blocco automatico che lo impedisce resta sempre attivo: non si aggira e non si disattiva; se scatta, si spiega a Roberto cosa si voleva cambiare e si aspetta il suo ok.
 
 ## 3. Segreti
 - Le chiavi API le inserisce Roberto direttamente nelle piattaforme. **Mai** chiederle, scriverle o incollarle in chat, nel codice o nei commit.
@@ -22,6 +31,7 @@ Se una regola di progetto contraddice questo file, chiedi prima di procedere.
 - Ogni repo ha la scansione segreti (gitleaks) nella CI.
 
 ## 4. Dati dei clienti (GDPR) — regola più importante
+- Per usare il modello migliore con dati dei clienti: **pseudonimizzazione sul server di Roberto** (nomi, codici, indirizzi diventano segnaposto; la tabella per ripristinarli non esce mai dal server) **più** fornitore con server in UE, DPA e nessuna conservazione. Le due misure insieme, non una sola.
 - I progetti trattano dati reali dei clienti, anche di categoria particolare (es. sanitari). Progettare conformi al GDPR dal primo giorno.
 - I dati dei clienti vanno solo a fornitori con DPA firmato, server in UE, zero data retention e niente addestramento. Nessun altro canale (né log, né analytics, né LLM di prova).
 - Sviluppo e test: **solo dati finti**. Mai dati reali in repo, fixture, screenshot o issue.
