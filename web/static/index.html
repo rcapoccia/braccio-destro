@@ -42,6 +42,14 @@
     <button id="vai-bozze" class="icona" aria-label="Bozze da approvare"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></svg><b class="conta" id="num-bozze-m"></b></button>
   </header>
   <div id="velo-menu" class="nascosto"></div>
+  <div id="visore" class="nascosto" role="dialog" aria-modal="true" aria-labelledby="visore-nome">
+    <div class="visore-barra">
+      <button id="visore-chiudi" class="visore-chiudi" aria-label="Chiudi il documento"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg><span>Chiudi</span></button>
+      <span id="visore-nome"></span>
+      <a id="visore-scarica" class="leggero">Scarica</a>
+    </div>
+    <div id="visore-pagine"></div>
+  </div>
   <nav id="menu">
     <div class="marchio"><span class="logo-v">V</span><span><b>Vega</b><small>Stital · Stile Italiano</small></span></div>
     <button id="nuova-chat" class="nuova-chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Nuova chat</span></button>

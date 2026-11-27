@@ -56,6 +56,7 @@ import elenchi  # noqa: E402
 import esperto  # noqa: E402
 import agente  # noqa: E402
 import memoria  # noqa: E402
+import moduli  # noqa: E402
 
 DOMINIO = os.environ.get("WEB_DOMINIO", "braccio.stital.it")
 ORIGINE = f"https://{DOMINIO}"
@@ -460,7 +461,8 @@ def elimina_conversazione(cid: str):
         _scrivi_json(FILE_INDICE, indice)
         if os.path.exists(percorso):
             os.remove(percorso)
-    log.info("Conversazione eliminata.")
+    _elimina_documenti_chat(cid)
+    log.info("Conversazione eliminata, con i suoi file.")
     return {"ok": True}
 
 
@@ -468,9 +470,9 @@ def elimina_conversazione(cid: str):
 def leggi_chat(conv: str = ""):
     cid = _conv_valida(conv)
     chat = _leggi_conv(cid)
-    for v in chat:   # i file scaduti non si scaricano più
+    for v in chat:   # i file non più disponibili si segnano
         for f in v.get("file", []) + v.get("documenti", []):
-            f["disponibile"] = f["id"] in documenti
+            f["disponibile"] = f["id"] in documenti or os.path.exists(os.path.join(CARTELLA_DOC, f["id"] + ".json"))
     return {"conv": cid, "voci": chat}
 
 
@@ -524,8 +526,10 @@ async def nuova_istruzione(testo: str = Form(""), uid_mail: str = Form(""), conv
     if uid_mail and not uid_mail.isdigit():
         raise HTTPException(400, "Mail non valida.")
     id_lavoro = uuid.uuid4().hex
-    cid = _salva_chat({"id": uuid.uuid4().hex, "chi": "roberto", "testo": testo, "ora": time.strftime("%d/%m %H:%M"),
-                       "allegati": [n for n, _ in caricati], "mail": uid_mail or None}, conv)
+    cid = _conv_valida(conv)
+    _salva_chat({"id": uuid.uuid4().hex, "chi": "roberto", "testo": testo, "ora": time.strftime("%d/%m %H:%M"),
+                 "allegati": [n for n, _ in caricati], "mail": uid_mail or None,
+                 "file": [_registra_documento(n, d, cid) for n, d in caricati]}, cid)
     lavori[id_lavoro] = {"stato": "in corso"}
     # Vega è un agente: ogni richiesta va a lei, che decide da sola i passi (decisione di Roberto, 27/11/2026).
     lavoratori.submit(_esegui_agente, id_lavoro, testo, uid_mail, caricati, cid)
@@ -556,9 +560,9 @@ def _esegui_agente(id_lavoro, testo, uid_mail, caricati, cid=None):
                 passi[-1] = p
             else:
                 passi.append(p)
-        r = agente.esegui(testo, _imap, caricati, storia, avanzamento=avanza)
+        r = agente.esegui(testo, _imap, _documenti_della_chat(cid) or caricati, storia, avanzamento=avanza)
         voce.update({"testo": r["risposta"] or "Fatto.", "passi": r["passi"], "ricordati": r.get("ricordati", []),
-                     "documenti": [_registra_documento(d["nome"], d["dati"]) for d in r["documenti"]]})
+                     "documenti": [_registra_documento(d["nome"], d["dati"], cid) for d in r["documenti"]]})
         for b in r["bozze"]:
             bozze.append({"id": uuid.uuid4().hex, "chi": "braccio", "tipo": "bozza", "mid": b["mid"], "a": b["a"],
                           "cc": b["cc"], "oggetto": b["oggetto"], "testo": b["testo"], "allegati": b["allegati"],
@@ -726,18 +730,105 @@ def _esegui_elenco(id_lavoro, testo, dati_excel):
     lavori[id_lavoro] = {"stato": "fatto", "fine": time.time()}
 
 
-def _registra_documento(nome, dati):
+CARTELLA_DOC = os.path.join(DATI, "documenti")   # file allegati e prodotti nelle chat: restano finché c'è la chat
+
+
+def _registra_documento(nome, dati, cid=None):
     id_doc = secrets.token_urlsafe(16)
     documenti[id_doc] = (nome, dati, time.time() + DURATA_FILE)
+    if cid:
+        os.makedirs(CARTELLA_DOC, mode=0o700, exist_ok=True)
+        with open(os.path.join(CARTELLA_DOC, id_doc + ".bin"), "wb") as f:
+            f.write(dati)
+        _scrivi_json(os.path.join(CARTELLA_DOC, id_doc + ".json"), {"nome": nome, "conv": cid, "creato": time.time()})
     return {"id": id_doc, "nome": nome, "kb": max(1, len(dati) // 1024)}
+
+
+def _documento(id_doc):
+    """(nome, dati) del documento, dalla memoria o dal disco; None se non c'è più."""
+    voce = documenti.get(id_doc)
+    if voce:
+        return voce[0], voce[1]
+    if not re.fullmatch(r"[\w-]{10,40}", id_doc or ""):
+        return None
+    info = _leggi_json(os.path.join(CARTELLA_DOC, id_doc + ".json"), None)
+    if not info:
+        return None
+    try:
+        with open(os.path.join(CARTELLA_DOC, id_doc + ".bin"), "rb") as f:
+            return info["nome"], f.read()
+    except OSError:
+        return None
+
+
+def _documenti_della_chat(cid):
+    """Tutti i file della chat (allegati da Roberto e prodotti da Vega), senza doppioni di nome."""
+    visti, nomi, out = set(), set(), []
+    for v in _leggi_conv(cid):
+        for d in v.get("file", []) + v.get("documenti", []):
+            if d.get("id") in visti:
+                continue
+            visti.add(d.get("id"))
+            trovato = _documento(d.get("id"))
+            if not trovato:
+                continue
+            nome, dati = trovato
+            base, est = os.path.splitext(nome)
+            i = 2
+            while nome in nomi:
+                nome = f"{base} ({i}){est}"
+                i += 1
+            nomi.add(nome)
+            out.append((nome, dati))
+    return out
+
+
+def _elimina_documenti_chat(cid):
+    if not os.path.isdir(CARTELLA_DOC):
+        return
+    for f in os.listdir(CARTELLA_DOC):
+        if f.endswith(".json") and _leggi_json(os.path.join(CARTELLA_DOC, f), {}).get("conv") == cid:
+            for est in (".json", ".bin"):
+                try:
+                    os.remove(os.path.join(CARTELLA_DOC, f[:-5] + est))
+                except OSError:
+                    pass
+
+
+@app.get("/api/file/{id_doc}/info")
+def info_documento(id_doc: str):
+    trovato = _documento(id_doc)
+    if not trovato:
+        raise HTTPException(404, "Documento non più disponibile.")
+    nome, dati = trovato
+    pdf = nome.lower().endswith(".pdf")
+    pagine = 0
+    if pdf:
+        try:
+            pagine = moduli.pagine(dati)
+        except Exception:
+            pdf = False
+    return {"nome": nome, "pdf": pdf, "pagine": pagine, "kb": max(1, len(dati) // 1024)}
+
+
+@app.get("/api/file/{id_doc}/pagina/{n}")
+def pagina_documento(id_doc: str, n: int):
+    trovato = _documento(id_doc)
+    if not trovato or not trovato[0].lower().endswith(".pdf"):
+        raise HTTPException(404, "Documento non più disponibile.")
+    try:
+        png, _ = moduli.anteprima(trovato[1], n)
+    except IndexError:
+        raise HTTPException(404, "Pagina inesistente.")
+    return Response(png, media_type="image/png", headers={"Cache-Control": "private, max-age=3600"})
 
 
 @app.get("/api/file/{id_doc}")
 def scarica(id_doc: str):
-    voce = documenti.get(id_doc)
-    if not voce:
-        raise HTTPException(404, "Documento scaduto: rifai la ricerca.")
-    nome, dati, _ = voce
+    trovato = _documento(id_doc)
+    if not trovato:
+        raise HTTPException(404, "Documento non più disponibile.")
+    nome, dati = trovato
     tipo = mimetypes.guess_type(nome)[0] or "application/octet-stream"
     nome_sicuro = re.sub(r'[^\w .()-]', "_", nome)
     return Response(dati, media_type=tipo, headers={"Content-Disposition": f'inline; filename="{nome_sicuro}"'})

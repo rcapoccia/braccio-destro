@@ -85,6 +85,12 @@ REGOLE FISSE
 - Le bozze per i clienti: tono informale ma professionale come scrive Roberto ("Ciao Nome,", chiusura
   "Grazie e ciao"), testo semplice senza markdown, nessuna promessa su tempi o esiti non scritti nei documenti.
 - Per lavori su molte polizze di un elenco Excel usa cerca_polizze_da_elenco (lavora in blocco e salva nelle schede).
+- MODULI: se Roberto ti dà un modulo da compilare, compila QUEL modulo, non rifarlo a modo tuo. Se ha campi
+  compilabili usa campi_pdf e compila_pdf; altrimenti leggi_modulo e scrivi_sul_modulo. Usa crea_documento solo
+  se il modulo è una scansione senza testo, e dillo. Riporta i dati esattamente come nei documenti di Roberto;
+  correggi solo errori di lettura evidenti; aggiorna anno e date all'anno richiesto; lascia vuoti firme, date
+  di firma e spazi riservati all'ufficio. Alla fine elenca a Roberto i dati incerti o diversi tra un documento e
+  l'altro (es. due numeri di telefono), gli spazi lasciati vuoti e cosa deve firmare.
 - Alla fine rispondi a Roberto in italiano, breve e concreto: cosa hai fatto, cosa hai trovato, cosa manca.
   Se hai preparato documenti da mostrargli, usa mostra_documento.
 
@@ -134,6 +140,11 @@ ATTREZZI = [
     {"name": "compila_pdf", "description": "Compila un modulo PDF che ha campi compilabili (codice D..) con i valori indicati {nome_campo: valore}. Per le caselle usa 'si'/'no'. Ritorna il codice del PDF compilato.",
      "parameters": {"type": "object", "properties": {"documento": {"type": "string"}, "valori": {"type": "object"},
                                                      "nome_file": {"type": "string"}}, "required": ["documento", "valori"]}},
+    {"name": "leggi_modulo", "description": "Per i moduli PDF SENZA campi compilabili (righe ____ e caselle): mostra il modulo riga per riga con gli spazi segnati al loro posto, [S4] = riga da scrivere, [☐S7] = casella. Poi usa scrivi_sul_modulo.",
+     "parameters": {"type": "object", "properties": {"documento": {"type": "string"}}, "required": ["documento"]}},
+    {"name": "scrivi_sul_modulo", "description": "Scrive sopra al modulo originale di Roberto, negli spazi indicati: {\"S4\": \"testo\", \"S7\": \"X\"}. Il modulo resta identico, si aggiunge solo il testo. Ritorna il codice del PDF compilato.",
+     "parameters": {"type": "object", "properties": {"documento": {"type": "string"}, "valori": {"type": "object"},
+                                                     "nome_file": {"type": "string"}}, "required": ["documento", "valori"]}},
     {"name": "crea_documento", "description": "Crea un PDF di testo (es. le risposte di una domanda da ricopiare, quando il modulo non ha campi compilabili). Ritorna il codice del documento.",
      "parameters": {"type": "object", "properties": {"titolo": {"type": "string"}, "testo": {"type": "string"},
                                                      "nome_file": {"type": "string"}}, "required": ["titolo", "testo"]}},
@@ -167,6 +178,7 @@ class Lavoro:
         self.bozze = []              # bozze create
         self.passi = []              # testo leggibile dei passi
         self.ricordati = []          # note aggiornate in questa richiesta
+        self.spazi_moduli = {}       # codice documento -> spazi del modulo
         self.avanzamento = avanzamento or (lambda testo: None)
 
     # --- utilità ---------------------------------------------------------------------
@@ -458,6 +470,33 @@ class Lavoro:
         return {"documento": codice, "compilati": len(pronti), "campi_non_trovati": sconosciuti[:30],
                 "campi_rimasti_vuoti": vuoti[:60]}
 
+    def leggi_modulo(self, documento):
+        import moduli
+        doc = self.documenti.get(documento)
+        if not doc:
+            return {"errore": "codice documento non valido"}
+        if not doc["nome"].lower().endswith(".pdf"):
+            return {"errore": "non è un PDF"}
+        elenco = moduli.spazi(doc["dati"])
+        self.spazi_moduli[documento] = elenco
+        if not elenco:
+            return {"spazi": 0, "nota": "Nessuna riga o casella trovata: forse è una scansione. Prepara le risposte con crea_documento."}
+        return {"spazi": len(elenco), "modulo": moduli.vista(doc["dati"], elenco)[:14000]}
+
+    def scrivi_sul_modulo(self, documento, valori, nome_file=None):
+        import moduli
+        doc = self.documenti.get(documento)
+        if not doc:
+            return {"errore": "codice documento non valido"}
+        elenco = self.spazi_moduli.get(documento) or moduli.spazi(doc["dati"])
+        pdf, usati, ignoti = moduli.scrivi(doc["dati"], valori or {}, elenco)
+        nome = nome_file or ("Compilato - " + doc["nome"])
+        if not nome.lower().endswith(".pdf"):
+            nome += ".pdf"
+        codice = self.registra(nome, pdf)
+        self.mostra_documento(codice)
+        return {"documento": codice, "spazi_scritti": usati, "spazi_sconosciuti": ignoti[:30]}
+
     def crea_documento(self, titolo, testo, nome_file=None):
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import getSampleStyleSheet
@@ -677,6 +716,8 @@ def descrivi_passo(nome, a):
         "campi_pdf": lambda: "Guardo i campi del modulo",
         "compila_pdf": lambda: f"Compilo il modulo{': ' + a['nome_file'] if a.get('nome_file') else ''}",
         "crea_documento": lambda: f"Scrivo il documento: {a.get('titolo', '')}",
+        "leggi_modulo": lambda: "Leggo il modulo da compilare",
+        "scrivi_sul_modulo": lambda: "Compilo il modulo",
         "leggi_memoria": lambda: f"Rileggo i miei appunti{': ' + a['nota'] if a.get('nota') else ''}",
         "ricorda": lambda: f"Mi segno un appunto su {a.get('nota', '')}",
     }

@@ -102,7 +102,11 @@ function disegnaMessaggio(v) {
   const box = $("#messaggi");
   if (v.chi === "roberto") {
     const m = el("div", "msg roberto", v.testo);
-    if (v.allegati && v.allegati.length) m.append(el("span", "ora", "📎 " + v.allegati.join(", ")));
+    if (v.file && v.file.length) {
+      const f = el("div", "allegati-roberto");
+      v.file.forEach(x => f.append(linkFile(x)));
+      m.append(f);
+    } else if (v.allegati && v.allegati.length) m.append(el("span", "ora", "📎 " + v.allegati.join(", ")));
     if (v.mail) m.append(el("span", "ora", "su una mail della posta"));
     m.append(el("span", "ora", v.ora));
     box.append(m);
@@ -120,16 +124,41 @@ function disegnaMessaggio(v) {
   if (v.file && v.file.length) {
     const f = el("div", "file");
     v.file.forEach(x => {
-      if (x.disponibile === false) { f.append(el("span", "piccolo", x.nome + " (scaduto: rifai la ricerca)")); return; }
-      const a = el("a", "", "📄 " + x.nome + " · " + x.kb + " KB");
-      a.href = "/api/file/" + encodeURIComponent(x.id); a.target = "_blank"; a.rel = "noopener";
-      f.append(a);
+      f.append(linkFile(x));
     });
     m.append(f);
   }
   m.append(el("span", "ora", v.ora));
   box.append(m);
 }
+
+// --- File: si aprono dentro la pagina, con «Chiudi» sempre visibile ------------------------
+function linkFile(x) {
+  if (x.disponibile === false) return el("span", "file-chip spento", x.nome + " (non più disponibile)");
+  const a = el("a", "file-chip", "📄 " + x.nome);
+  a.href = "/api/file/" + encodeURIComponent(x.id);
+  a.onclick = e => { e.preventDefault(); apriFile(x.id, x.nome); };
+  return a;
+}
+
+async function apriFile(id, nome) {
+  const v = $("#visore"), box = $("#visore-pagine");
+  $("#visore-nome").textContent = nome || "Documento";
+  const giu = $("#visore-scarica"); giu.href = "/api/file/" + encodeURIComponent(id); giu.setAttribute("download", nome || "");
+  box.replaceChildren(el("p", "aiuto", "Apro il documento…"));
+  v.classList.remove("nascosto"); document.body.classList.add("visore-aperto");
+  try {
+    const info = await api("/api/file/" + encodeURIComponent(id) + "/info");
+    box.replaceChildren();
+    if (!info.pdf) { box.append(el("p", "aiuto", "Questo file non si può vedere qui: usa «Scarica».")); return; }
+    for (let n = 1; n <= info.pagine; n++) {
+      const img = el("img", "visore-pagina"); img.loading = "lazy"; img.alt = "Pagina " + n;
+      img.src = "/api/file/" + encodeURIComponent(id) + "/pagina/" + n;
+      box.append(img);
+    }
+  } catch (e) { box.replaceChildren(el("p", "aiuto", e.message)); }
+}
+function chiudiFile() { $("#visore").classList.add("nascosto"); document.body.classList.remove("visore-aperto"); $("#visore-pagine").replaceChildren(); }
 
 // Testo di Vega: grassetti veri al posto degli asterischi, via le righe "---" e i cancelletti dei titoli.
 // Nessun HTML dal testo: solo nodi di testo e <strong>.
@@ -152,10 +181,7 @@ function schedaVega(v) {
   if (v.documenti && v.documenti.length) {
     const f = el("div", "file");
     v.documenti.forEach(x => {
-      if (x.disponibile === false) { f.append(el("span", "piccolo", x.nome + " (scaduto)")); return; }
-      const a = el("a", "", "📄 " + x.nome + " · " + x.kb + " KB");
-      a.href = "/api/file/" + encodeURIComponent(x.id); a.target = "_blank"; a.rel = "noopener";
-      f.append(a);
+      f.append(linkFile(x));
     });
     m.append(f);
   }
@@ -250,7 +276,7 @@ function schedaRicerca(v) {
       corpo.append(el("div", "r-gruppo", (v.titoli[t] || t) + " · " + docs.length));
       docs.forEach(d => {
         const riga = el(d.disponibile === false ? "div" : "a", "r-doc");
-        if (d.disponibile !== false) { riga.href = "/api/file/" + encodeURIComponent(d.id); riga.target = "_blank"; riga.rel = "noopener"; }
+        if (d.disponibile !== false) { riga.href = "#"; riga.onclick = e => { e.preventDefault(); apriFile(d.id, d.nome); }; }
         const testo = el("div", "r-testo");
         testo.append(el("span", "r-desc", d.descrizione || d.nome));
         const dettagli = [d.compagnia, d.numero ? "n. " + d.numero : "", d.scadenza ? "scad. " + d.scadenza : ""].filter(Boolean).join(" · ");
@@ -693,6 +719,8 @@ $("#apri-menu").onclick = () => { document.body.classList.add("menu-aperto"); $(
 $("#velo-menu").onclick = chiudiMenu;
 $("#vai-bozze").onclick = () => mostraVista("bozze");
 $("#nuova-chat").onclick = nuovaChat;
+$("#visore-chiudi").onclick = chiudiFile;
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("#visore").classList.contains("nascosto")) chiudiFile(); });
 $("#nota-indietro").onclick = caricaMemoria;
 let attesaCerca; $("#cerca-chat").oninput = () => { clearTimeout(attesaCerca); attesaCerca = setTimeout(caricaConversazioni, 250); };
 $$(".suggerimenti button").forEach(b => b.onclick = () => { $("#testo").value = b.dataset.testo; $("#testo").focus(); });
