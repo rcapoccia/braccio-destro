@@ -59,7 +59,8 @@ jobs:
           sudo DEST=/opt/braccio-destro bash scatola-installa.sh
           sleep 3
           systemctl status vega-scatola --no-pager | head -5
-          sudo -u braccio /opt/braccio-destro/venv/bin/python tests/test_scatola.py
+          sudo install -d -m 755 /opt/prove && sudo cp -r tests scatola.py moduli.py /opt/prove/ && sudo chmod -R a+rX /opt/prove
+          sudo -u braccio /opt/braccio-destro/venv/bin/python /opt/prove/tests/test_scatola.py
 
       - name: Pagina (servizio vero, stessi limiti di memoria del server)
         run: |
@@ -82,7 +83,7 @@ jobs:
           MemoryMax=2800M
           U
           sudo systemctl daemon-reload && sudo systemctl start braccio-web
-          TOKEN_PROVA=$TOKEN /opt/braccio-destro/venv/bin/python tests/test_pagina.py
+          TOKEN_PROVA=$TOKEN /opt/braccio-destro/venv/bin/python /opt/prove/tests/test_pagina.py
 
       - name: Registro della pagina (solo se qualcosa va storto)
         if: failure()
