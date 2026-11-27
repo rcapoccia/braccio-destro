@@ -31,7 +31,7 @@ GITHUB_HOST='github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoq
 
 export GIT_TERMINAL_PROMPT=0
 TMP=""
-trap '[[ -n "$TMP" ]] && rm -rf "$TMP"' EXIT
+trap 'if [[ -n "$TMP" ]]; then rm -rf "$TMP"; fi' EXIT
 
 dire() { echo "$*"; }
 
@@ -112,10 +112,10 @@ ripristina() {       # rimette la versione salvata. $1 = elenco dei file della v
   local salva="$STATO/salvata" f
   [[ -d "$salva/file" ]] || return 1
   if [[ -n "${1:-}" && -f "$1" ]]; then
-    while read -r f; do [[ -f "$salva/file/$f" ]] || rm -f "$DEST/$f"; done < "$1"
+    while read -r f; do if [[ ! -f "$salva/file/$f" ]]; then rm -f "$DEST/$f"; fi; done < "$1"
   fi
   (cd "$salva/file" && find . -type f -print0 | while IFS= read -r -d '' f; do install -D -m 644 "$f" "$DEST/$f"; done)
-  for f in braccio-auto-aggiorna braccio-codice; do [[ -f "$salva/$f" ]] && install -m 755 "$salva/$f" "$SBIN/$f"; done
+  for f in braccio-auto-aggiorna braccio-codice; do if [[ -f "$salva/$f" ]]; then install -m 755 "$salva/$f" "$SBIN/$f"; fi; done
   if [[ -f "$DEST/requirements-web.txt" ]]; then
     librerie "$DEST/requirements-web.txt" || rm -f "$STATO/librerie"   # si riproverà al prossimo giro
   fi
@@ -182,10 +182,10 @@ principale() {
   local salva="$STATO/salvata"; rm -rf "$salva.nuova"; mkdir -p "$salva.nuova/file"
   local vecchio_elenco="$STATO/elenco"; [[ -f "$vecchio_elenco" ]] || vecchio_elenco="$elenco"
   sort -u "$vecchio_elenco" "$elenco" | while read -r f; do
-    [[ -f "$DEST/$f" ]] && install -D -m 644 "$DEST/$f" "$salva.nuova/file/$f"
+    if [[ -f "$DEST/$f" ]]; then install -D -m 644 "$DEST/$f" "$salva.nuova/file/$f"; fi
   done
   sort -u "$vecchio_elenco" > "$salva.nuova/elenco"
-  for f in braccio-auto-aggiorna braccio-codice; do [[ -f "$SBIN/$f" ]] && cp -p "$SBIN/$f" "$salva.nuova/$f"; done
+  for f in braccio-auto-aggiorna braccio-codice; do if [[ -f "$SBIN/$f" ]]; then cp -p "$SBIN/$f" "$salva.nuova/$f"; fi; done
   rm -rf "$salva"; mv "$salva.nuova" "$salva"
 
   # --- librerie (prima dei file: se falliscono non si cambia nulla) ---
@@ -217,7 +217,7 @@ principale() {
   fi
   rm -f "$STATO/in-corso" "$STATO/in-corso.elenco"
 
-  [[ -n "$attuale" ]] && echo "$attuale" > "$STATO/precedente"
+  if [[ -n "$attuale" ]]; then echo "$attuale" > "$STATO/precedente"; fi
   echo "$sha" > "$STATO/versione"
   cp "$elenco" "$STATO/elenco"
   esegui_sistema || dire "Configurazione di sistema non riuscita: riprovo al prossimo giro."
