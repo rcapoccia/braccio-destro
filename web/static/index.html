@@ -44,11 +44,16 @@
   <div id="velo-menu" class="nascosto"></div>
   <nav id="menu">
     <div class="marchio"><span class="logo-v">V</span><span><b>Vega</b><small>Stital · Stile Italiano</small></span></div>
-    <button data-vista="chat" class="attivo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Chat</span></button>
+    <button id="nuova-chat" class="nuova-chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Nuova chat</span></button>
     <button data-vista="bozze"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></svg><span>Bozze da approvare</span><b id="num-bozze" class="conta"></b></button>
     <button data-vista="clienti"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18 14.8c2 .8 3.2 2.5 3.6 5.2"/></svg><span>Clienti</span></button>
     <button data-vista="posta"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5 12 13l8.5-6.5"/></svg><span>Posta</span></button>
     <button data-vista="biblioteca"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4v16H5zM10 4h4v16h-4z"/><path d="m15.5 5 3.7-1 3 15.4-3.8 1z"/></svg><span>Biblioteca</span></button>
+    <button data-vista="memoria"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h11a1 1 0 0 1 1 1v16l-3-2-3 2-3-2-3 2V4a1 1 0 0 1 1-1z"/><path d="M9 8h6M9 12h4"/></svg><span>Memoria</span></button>
+    <div class="chat-recenti">
+      <input id="cerca-chat" type="search" placeholder="Cerca nelle chat" autocomplete="off">
+      <div id="elenco-chat"></div>
+    </div>
     <div class="menu-fondo">
       <button data-vista="collegamenti"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/></svg><span>Impostazioni</span></button>
       <button id="esci"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10"/></svg><span>Esci</span></button>
@@ -93,6 +98,19 @@
         <p id="esito-biblioteca" class="piccolo"></p>
       </div>
       <div id="elenco-biblioteca"></div>
+    </div>
+    <div id="vista-memoria" class="vista nascosto">
+      <div id="elenco-memoria-box">
+        <h2 class="titolo-vista">Memoria</h2>
+        <p class="aiuto">Il quaderno di Vega: quello che ricorda da una chat all'altra. Puoi correggere o cancellare ogni nota; cancellata, Vega non la ricorda più.</p>
+        <div id="elenco-memoria"></div>
+      </div>
+      <div id="nota-aperta" class="nascosto">
+        <button id="nota-indietro" class="leggero">‹ Tutte le note</button>
+        <h2 class="titolo-vista" id="nota-titolo"></h2>
+        <textarea id="nota-testo" rows="16"></textarea>
+        <div class="riga"><button id="nota-elimina" class="leggero pericolo">Cancella nota</button><button id="nota-salva" class="primario">Salva</button></div>
+      </div>
     </div>
     <div id="vista-collegamenti" class="vista nascosto">
       <h2 class="titolo-vista">Impostazioni</h2>

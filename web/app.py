@@ -55,6 +55,7 @@ import clienti  # noqa: E402
 import elenchi  # noqa: E402
 import esperto  # noqa: E402
 import agente  # noqa: E402
+import memoria  # noqa: E402
 
 DOMINIO = os.environ.get("WEB_DOMINIO", "braccio.stital.it")
 ORIGINE = f"https://{DOMINIO}"
@@ -329,25 +330,187 @@ def _data_breve(valore):
         return ""
 
 
-# --- Chat: istruzioni ------------------------------------------------------------------
-def _salva_chat(voce):
+# --- Chat: conversazioni ---------------------------------------------------------------
+# Ogni conversazione è un file a sé; l'indice tiene titolo e date per l'elenco nel menu.
+CARTELLA_CONV = os.path.join(DATI, "conversazioni")
+FILE_INDICE = os.path.join(CARTELLA_CONV, "indice.json")
+
+
+def _file_conv(cid):
+    if not re.fullmatch(r"[0-9a-f]{32}", cid or ""):
+        raise HTTPException(404, "Conversazione non trovata.")
+    return os.path.join(CARTELLA_CONV, cid + ".json")
+
+
+def _indice():
+    os.makedirs(CARTELLA_CONV, mode=0o700, exist_ok=True)
+    indice = _leggi_json(FILE_INDICE, None)
+    if indice is None:   # primo avvio: la chat unica di prima diventa la prima conversazione
+        indice = {}
+        vecchia = _leggi_json(FILE_CHAT, [])
+        if vecchia:
+            cid = uuid.uuid4().hex
+            _scrivi_json(os.path.join(CARTELLA_CONV, cid + ".json"), vecchia)
+            indice[cid] = {"titolo": "Chat di prima", "creata": time.time(), "aggiornata": time.time()}
+        _scrivi_json(FILE_INDICE, indice)
+    return indice
+
+
+def _titolo_da(testo):
+    t = re.sub(r"\s+", " ", testo or "").strip()
+    if len(t) <= 60:
+        return t or "Nuova chat"
+    return t[:60].rsplit(" ", 1)[0] + "…"
+
+
+def _nuova_conv(titolo="Nuova chat"):
     with blocco:
-        chat = _leggi_json(FILE_CHAT, [])
+        indice = _indice()
+        vuote = [k for k, v in indice.items() if v.get("vuota")]
+        if vuote:   # una chat nuova ancora vuota si riusa: niente elenco pieno di "Nuova chat"
+            indice[vuote[0]]["aggiornata"] = time.time()
+            _scrivi_json(FILE_INDICE, indice)
+            return vuote[0]
+        cid = uuid.uuid4().hex
+        indice[cid] = {"titolo": titolo, "creata": time.time(), "aggiornata": time.time(), "vuota": True}
+        _scrivi_json(FILE_INDICE, indice)
+        _scrivi_json(_file_conv(cid), [])
+    return cid
+
+
+def _conv_valida(cid):
+    with blocco:
+        indice = _indice()
+    if cid in indice:
+        return cid
+    recenti = sorted(indice, key=lambda k: indice[k]["aggiornata"], reverse=True)
+    return recenti[0] if recenti else _nuova_conv()
+
+
+def _leggi_conv(cid):
+    return _leggi_json(_file_conv(cid), [])
+
+
+def _salva_chat(voce, cid=None):
+    cid = _conv_valida(cid)
+    with blocco:
+        chat = _leggi_json(_file_conv(cid), [])
         chat.append(voce)
-        _scrivi_json(FILE_CHAT, chat[-150:])
+        _scrivi_json(_file_conv(cid), chat[-300:])
+        indice = _indice()
+        info = indice.setdefault(cid, {"titolo": "Nuova chat", "creata": time.time()})
+        info["aggiornata"] = time.time()
+        if info.pop("vuota", False) and voce.get("chi") == "roberto":
+            info["titolo"] = _titolo_da(voce.get("testo"))
+        _scrivi_json(FILE_INDICE, indice)
+    return cid
+
+
+def _tutte_le_voci():
+    with blocco:
+        indice = _indice()
+    for cid in indice:
+        for v in _leggi_json(os.path.join(CARTELLA_CONV, cid + ".json"), []):
+            yield cid, v
+
+
+@app.get("/api/conversazioni")
+def elenco_conversazioni(q: str = ""):
+    with blocco:
+        indice = _indice()
+    parole = [w for w in re.findall(r"\w+", q.lower()) if len(w) > 1]
+    out = []
+    for cid, info in sorted(indice.items(), key=lambda x: x[1]["aggiornata"], reverse=True):
+        if info.get("vuota"):
+            continue
+        if parole:
+            testo = (info["titolo"] + " " + " ".join(v.get("testo", "") for v in _leggi_conv(cid)
+                                                       if v.get("chi") == "roberto")).lower()
+            if not all(w in testo for w in parole):
+                continue
+        out.append({"id": cid, "titolo": info["titolo"], "aggiornata": info["aggiornata"]})
+    return out[:300]
+
+
+@app.post("/api/conversazioni")
+def crea_conversazione():
+    return {"id": _nuova_conv()}
+
+
+@app.post("/api/conversazioni/{cid}/rinomina")
+async def rinomina_conversazione(cid: str, request: Request):
+    titolo = re.sub(r"\s+", " ", (await request.json()).get("titolo") or "").strip()[:80]
+    _file_conv(cid)
+    with blocco:
+        indice = _indice()
+        if cid not in indice or not titolo:
+            raise HTTPException(400, "Titolo non valido.")
+        indice[cid]["titolo"] = titolo
+        indice[cid].pop("vuota", None)
+        _scrivi_json(FILE_INDICE, indice)
+    return {"ok": True}
+
+
+@app.post("/api/conversazioni/{cid}/elimina")
+def elimina_conversazione(cid: str):
+    percorso = _file_conv(cid)
+    with blocco:
+        indice = _indice()
+        indice.pop(cid, None)
+        _scrivi_json(FILE_INDICE, indice)
+        if os.path.exists(percorso):
+            os.remove(percorso)
+    log.info("Conversazione eliminata.")
+    return {"ok": True}
 
 
 @app.get("/api/chat")
-def leggi_chat():
-    chat = _leggi_json(FILE_CHAT, [])
+def leggi_chat(conv: str = ""):
+    cid = _conv_valida(conv)
+    chat = _leggi_conv(cid)
     for v in chat:   # i file scaduti non si scaricano più
         for f in v.get("file", []) + v.get("documenti", []):
             f["disponibile"] = f["id"] in documenti
-    return chat
+    return {"conv": cid, "voci": chat}
+
+
+# --- Memoria di Vega (il quaderno): Roberto vede, corregge e cancella -----------------------
+@app.get("/api/memoria")
+def elenco_memoria():
+    return memoria.elenco()
+
+
+@app.get("/api/memoria/{nome}")
+def leggi_memoria(nome: str):
+    try:
+        return {"nome": nome, "testo": memoria.leggi(nome)}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/memoria/{nome}")
+async def salva_memoria(nome: str, request: Request):
+    try:
+        memoria.scrivi(nome, (await request.json()).get("testo") or "")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    log.info("Nota della memoria aggiornata da Roberto.")
+    return {"ok": True}
+
+
+@app.post("/api/memoria/{nome}/elimina")
+def elimina_memoria(nome: str):
+    try:
+        memoria.elimina(nome)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    log.info("Nota della memoria eliminata da Roberto.")
+    return {"ok": True}
 
 
 @app.post("/api/chat")
-async def nuova_istruzione(testo: str = Form(""), uid_mail: str = Form(""), file: list[UploadFile] = File(default=[])):
+async def nuova_istruzione(testo: str = Form(""), uid_mail: str = Form(""), conv: str = Form(""),
+                           file: list[UploadFile] = File(default=[])):
     testo = testo.strip()
     if not testo:
         raise HTTPException(400, "Scrivi cosa deve fare.")
@@ -361,12 +524,12 @@ async def nuova_istruzione(testo: str = Form(""), uid_mail: str = Form(""), file
     if uid_mail and not uid_mail.isdigit():
         raise HTTPException(400, "Mail non valida.")
     id_lavoro = uuid.uuid4().hex
-    _salva_chat({"id": uuid.uuid4().hex, "chi": "roberto", "testo": testo, "ora": time.strftime("%d/%m %H:%M"),
-                 "allegati": [n for n, _ in caricati], "mail": uid_mail or None})
+    cid = _salva_chat({"id": uuid.uuid4().hex, "chi": "roberto", "testo": testo, "ora": time.strftime("%d/%m %H:%M"),
+                       "allegati": [n for n, _ in caricati], "mail": uid_mail or None}, conv)
     lavori[id_lavoro] = {"stato": "in corso"}
     # Vega è un agente: ogni richiesta va a lei, che decide da sola i passi (decisione di Roberto, 27/11/2026).
-    lavoratori.submit(_esegui_agente, id_lavoro, testo, uid_mail, caricati)
-    return {"lavoro": id_lavoro}
+    lavoratori.submit(_esegui_agente, id_lavoro, testo, uid_mail, caricati, cid)
+    return {"lavoro": id_lavoro, "conv": cid}
 
 
 @app.get("/api/lavoro/{id_lavoro}")
@@ -377,7 +540,7 @@ def stato_lavoro(id_lavoro: str):
     return lav
 
 
-def _esegui_agente(id_lavoro, testo, uid_mail, caricati):
+def _esegui_agente(id_lavoro, testo, uid_mail, caricati, cid=None):
     """Passa la richiesta a Vega (agente.py) e mette in chat la risposta, i documenti e le bozze."""
     voce = {"id": uuid.uuid4().hex, "chi": "braccio", "tipo": "agente", "testo": ""}
     bozze = []
@@ -385,7 +548,7 @@ def _esegui_agente(id_lavoro, testo, uid_mail, caricati):
         if uid_mail:   # mail aperta dalla pagina: Vega la riceve come punto di partenza
             testo += f"\n\n(Riguarda la mail con id A-{uid_mail}: leggila con leggi_mail.)"
         storia = [("Roberto" if v.get("chi") == "roberto" else "Vega", v.get("testo", ""))
-                  for v in _leggi_json(FILE_CHAT, [])[-7:-1] if v.get("testo")]
+                  for v in _leggi_conv(_conv_valida(cid))[-9:-1] if v.get("testo")]
         passi = lavori[id_lavoro]["passi"] = []
 
         def avanza(p):   # l'avanzamento di un elenco aggiorna la stessa riga invece di aggiungerne centinaia
@@ -394,7 +557,7 @@ def _esegui_agente(id_lavoro, testo, uid_mail, caricati):
             else:
                 passi.append(p)
         r = agente.esegui(testo, _imap, caricati, storia, avanzamento=avanza)
-        voce.update({"testo": r["risposta"] or "Fatto.", "passi": r["passi"],
+        voce.update({"testo": r["risposta"] or "Fatto.", "passi": r["passi"], "ricordati": r.get("ricordati", []),
                      "documenti": [_registra_documento(d["nome"], d["dati"]) for d in r["documenti"]]})
         for b in r["bozze"]:
             bozze.append({"id": uuid.uuid4().hex, "chi": "braccio", "tipo": "bozza", "mid": b["mid"], "a": b["a"],
@@ -410,7 +573,7 @@ def _esegui_agente(id_lavoro, testo, uid_mail, caricati):
     ora = time.strftime("%d/%m %H:%M")
     for v in [voce] + bozze:
         v["ora"] = ora
-        _salva_chat(v)
+        _salva_chat(v, cid)
     lavori[id_lavoro] = {"stato": "fatto", "fine": time.time()}
 
 
@@ -709,11 +872,14 @@ def scarta_bozza(id_bozza: str):
 
 def _segna_bozza(mid, stato_bozza):
     with blocco:
-        chat = _leggi_json(FILE_CHAT, [])
-        for v in chat:
-            if v.get("mid") == mid:
-                v["stato_bozza"] = stato_bozza
-        _scrivi_json(FILE_CHAT, chat)
+        for cid in _indice():
+            percorso = os.path.join(CARTELLA_CONV, cid + ".json")
+            chat = _leggi_json(percorso, [])
+            if any(v.get("mid") == mid for v in chat):
+                for v in chat:
+                    if v.get("mid") == mid:
+                        v["stato_bozza"] = stato_bozza
+                _scrivi_json(percorso, chat)
 
 
 @app.get("/api/dispositivi")
@@ -756,7 +922,7 @@ async def crea_cliente(request: Request):
     nome = (corpo.get("nome") or "").strip()
     voce = None
     if corpo.get("da_ricerca"):
-        voce = next((v for v in _leggi_json(FILE_CHAT, []) if v.get("id") == corpo["da_ricerca"]), None)
+        voce = next((v for _, v in _tutte_le_voci() if v.get("id") == corpo["da_ricerca"]), None)
         nome = nome or (voce or {}).get("cliente", "")
     try:
         id_cliente = clienti.crea(nome, (voce or {}).get("nomi"))

@@ -24,3 +24,4 @@ elenchi.py
 velo.py
 agente.py
 web/static/geist.woff2
+memoria.py

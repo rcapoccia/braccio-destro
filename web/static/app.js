@@ -339,8 +339,53 @@ function schedaParere(v) {
   return m;
 }
 
+// --- Conversazioni (elenco nel menu, come nelle app AI) --------------------------------
+let convCorrente = (() => { try { return localStorage.getItem("conv") || ""; } catch (_) { return ""; } })();
+function impostaConv(id) { convCorrente = id; try { localStorage.setItem("conv", id); } catch (_) {} }
+
+function gruppoData(t) {
+  const g = new Date(t * 1000), oggi = new Date(); oggi.setHours(0, 0, 0, 0);
+  const giorni = Math.floor((oggi - new Date(g.getFullYear(), g.getMonth(), g.getDate())) / 86400000);
+  return giorni <= 0 ? "Oggi" : giorni === 1 ? "Ieri" : giorni < 7 ? "Ultimi 7 giorni" : giorni < 30 ? "Ultimi 30 giorni" : "Più vecchie";
+}
+
+async function caricaConversazioni() {
+  const q = $("#cerca-chat").value.trim();
+  const elenco = await api("/api/conversazioni" + (q ? "?q=" + encodeURIComponent(q) : ""));
+  const box = $("#elenco-chat"); box.replaceChildren();
+  let gruppo = "";
+  elenco.forEach(c => {
+    const g = gruppoData(c.aggiornata);
+    if (g !== gruppo) { gruppo = g; box.append(el("div", "gruppo-chat", g)); }
+    const riga = el("div", "voce-chat" + (c.id === convCorrente ? " attiva" : ""));
+    const apri = el("button", "apri-chat", c.titolo); apri.title = c.titolo;
+    apri.onclick = async () => { impostaConv(c.id); await mostraVista("chat"); await caricaChat(); caricaConversazioni(); };
+    const altro = el("button", "azioni-chat", "⋯"); altro.title = "Rinomina o elimina";
+    altro.onclick = async e => {
+      e.stopPropagation();
+      const scelta = prompt("Nuovo titolo (lascia vuoto e premi OK per eliminare la chat):", c.titolo);
+      if (scelta === null) return;
+      if (scelta.trim()) await api("/api/conversazioni/" + c.id + "/rinomina", { json: { titolo: scelta } });
+      else if (confirm("Eliminare la chat «" + c.titolo + "»? Schede clienti e bozze restano.")) {
+        await api("/api/conversazioni/" + c.id + "/elimina", { method: "POST" });
+        if (c.id === convCorrente) { impostaConv(""); await caricaChat(); }
+      }
+      caricaConversazioni();
+    };
+    riga.append(apri, altro); box.append(riga);
+  });
+  if (!elenco.length) box.append(el("div", "gruppo-chat", q ? "Nessuna chat trovata" : "Nessuna chat"));
+}
+
+async function nuovaChat() {
+  const { id } = await api("/api/conversazioni", { method: "POST" });
+  impostaConv(id); await mostraVista("chat"); await caricaChat(); caricaConversazioni(); $("#testo").focus();
+}
+
 async function caricaChat() {
-  const chat = await api("/api/chat");
+  const r = await api("/api/chat?conv=" + encodeURIComponent(convCorrente));
+  impostaConv(r.conv);
+  const chat = r.voci;
   $("#messaggi").replaceChildren();
   $("#benvenuto").classList.toggle("nascosto", chat.length > 0);   // chat vuota: saluto con suggerimenti
   chat.forEach(disegnaMessaggio);
@@ -355,6 +400,7 @@ async function inviaIstruzione(ev) {
   if (!testo) return;
   const fd = new FormData();
   fd.append("testo", testo);
+  fd.append("conv", convCorrente);
   if (mailScelta) fd.append("uid_mail", mailScelta.uid);
   fileScelti.forEach(f => fd.append("file", f));
   $("#invia").disabled = true;
@@ -362,7 +408,7 @@ async function inviaIstruzione(ev) {
     const { lavoro } = await api("/api/chat", { method: "POST", body: fd });
     $("#testo").value = ""; $("#file").value = ""; fileScelti = []; disegnaFile();
     togliContesto();
-    await caricaChat();
+    await caricaChat(); caricaConversazioni();
     const attesa = el("div", "attesa", "Vega sta lavorando…");
     $("#messaggi").append(attesa); scorriGiu();
     while (true) {
@@ -399,6 +445,7 @@ async function mostraVista(nome, senzaCaricare) {
     if (nome === "posta") await caricaPosta();
     if (nome === "collegamenti") { await caricaCollegamenti(); await caricaScaleway(); await caricaDispositivi(); }
     if (nome === "biblioteca") await caricaBiblioteca();
+    if (nome === "memoria") await caricaMemoria();
     if (nome === "chat") scorriGiu();
   } catch (e) { $("#vista-" + nome).append(el("p", "errore", e.message)); }
 }
@@ -603,7 +650,34 @@ async function avvia() {
   $("#ingresso").classList.add("nascosto");
   $("#app").classList.remove("nascosto");
   await caricaChat().catch(() => {});
+  caricaConversazioni().catch(() => {});
   contaBozze();
+}
+
+// --- Memoria di Vega (il quaderno) ---------------------------------------------------
+async function caricaMemoria() {
+  $("#nota-aperta").classList.add("nascosto"); $("#elenco-memoria-box").classList.remove("nascosto");
+  const note = await api("/api/memoria");
+  const box = $("#elenco-memoria"); box.replaceChildren();
+  if (!note.length) box.append(el("p", "aiuto", "Il quaderno è vuoto: Vega lo riempie lavorando, con i fatti che le serviranno la prossima volta."));
+  note.forEach(n => {
+    const b = el("button", "voce nota-voce");
+    b.append(el("span", "og", n.nome === "roberto" ? "Come lavori tu" : n.titolo),
+             el("span", "su", "Aggiornata il " + new Date(n.modificata * 1000).toLocaleDateString("it-IT")));
+    b.onclick = () => apriNota(n.nome, n.nome === "roberto" ? "Come lavori tu" : n.titolo);
+    box.append(b);
+  });
+}
+
+async function apriNota(nome, titolo) {
+  const n = await api("/api/memoria/" + encodeURIComponent(nome));
+  $("#elenco-memoria-box").classList.add("nascosto"); $("#nota-aperta").classList.remove("nascosto");
+  $("#nota-titolo").textContent = titolo; $("#nota-testo").value = n.testo;
+  $("#nota-salva").onclick = async () => { await api("/api/memoria/" + encodeURIComponent(nome), { json: { testo: $("#nota-testo").value } }); caricaMemoria(); };
+  $("#nota-elimina").onclick = async () => {
+    if (!confirm("Cancellare tutta la nota «" + titolo + "»? Vega non ricorderà più queste informazioni.")) return;
+    await api("/api/memoria/" + encodeURIComponent(nome) + "/elimina", { method: "POST" }); caricaMemoria();
+  };
 }
 
 // --- Eventi -----------------------------------------------------------------------
@@ -617,6 +691,9 @@ function chiudiMenu() { document.body.classList.remove("menu-aperto"); $("#velo-
 $("#apri-menu").onclick = () => { document.body.classList.add("menu-aperto"); $("#velo-menu").classList.remove("nascosto"); };
 $("#velo-menu").onclick = chiudiMenu;
 $("#vai-bozze").onclick = () => mostraVista("bozze");
+$("#nuova-chat").onclick = nuovaChat;
+$("#nota-indietro").onclick = caricaMemoria;
+let attesaCerca; $("#cerca-chat").oninput = () => { clearTimeout(attesaCerca); attesaCerca = setTimeout(caricaConversazioni, 250); };
 $$(".suggerimenti button").forEach(b => b.onclick = () => { $("#testo").value = b.dataset.testo; $("#testo").focus(); });
 // Il benvenuto compare solo a chat vuota
 new MutationObserver(() => $("#benvenuto").classList.toggle("nascosto", $("#messaggi").children.length > 0))

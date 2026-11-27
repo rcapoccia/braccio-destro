@@ -86,7 +86,16 @@ REGOLE FISSE
   "Grazie e ciao"), testo semplice senza markdown, nessuna promessa su tempi o esiti non scritti nei documenti.
 - Per lavori su molte polizze di un elenco Excel usa cerca_polizze_da_elenco (lavora in blocco e salva nelle schede).
 - Alla fine rispondi a Roberto in italiano, breve e concreto: cosa hai fatto, cosa hai trovato, cosa manca.
-  Se hai preparato documenti da mostrargli, usa mostra_documento."""
+  Se hai preparato documenti da mostrargli, usa mostra_documento.
+
+MEMORIA (il tuo quaderno, che Roberto può leggere e correggere)
+- Nel messaggio trovi gli appunti su Roberto e l'elenco delle note. Prima di lavorare su un cliente o un argomento
+  che ha una nota, leggila con leggi_memoria.
+- Dopo il lavoro salva con ricorda solo i fatti che serviranno ancora: decisioni di Roberto, referenti, scadenze,
+  compagnie, preferenze, cosa resta da fare. Un fatto per chiamata, frase breve.
+- Non salvare: testi interi di mail o documenti, codici fiscali, IBAN, dati sanitari o altri dati delicati
+  (stanno già nei documenti della scheda), né cose che valgono solo per oggi.
+- Se Roberto ti corregge o ti dice come vuole le cose, salvalo nella nota "roberto"."""
 
 ATTREZZI = [
     {"name": "cerca_posta", "description": "Cerca mail nella posta di Roberto (arrivata e/o inviata). Ritorna elenco con id, data, mittente/destinatari, oggetto e nomi degli allegati.",
@@ -127,6 +136,11 @@ ATTREZZI = [
          "allegati": {"type": "array", "items": {"type": "string"}, "description": "codici documento D.."},
          "rispondi_a": {"type": "string", "description": "id della mail a cui si risponde (facoltativo)"}},
          "required": ["oggetto", "testo"]}},
+    {"name": "leggi_memoria", "description": "Legge una nota del tuo quaderno (cliente, argomento, oppure 'roberto'). Senza argomento cerca nelle note le parole indicate in 'cerca'.",
+     "parameters": {"type": "object", "properties": {"nota": {"type": "string"}, "cerca": {"type": "string"}}}},
+    {"name": "ricorda", "description": "Aggiunge un fatto da ricordare alla nota di un cliente/argomento (o 'roberto' per le sue preferenze). La nota si crea se manca.",
+     "parameters": {"type": "object", "properties": {"nota": {"type": "string", "description": "nome del cliente/argomento, oppure roberto"},
+                                                     "fatto": {"type": "string"}}, "required": ["nota", "fatto"]}},
     {"name": "mostra_documento", "description": "Mette un documento (codice D..) tra i file da mostrare a Roberto nella risposta.",
      "parameters": {"type": "object", "properties": {"documento": {"type": "string"}}, "required": ["documento"]}},
 ]
@@ -144,6 +158,7 @@ class Lavoro:
         self.mostrati = []           # codici documento
         self.bozze = []              # bozze create
         self.passi = []              # testo leggibile dei passi
+        self.ricordati = []          # note aggiornate in questa richiesta
         self.avanzamento = avanzamento or (lambda testo: None)
 
     # --- utilità ---------------------------------------------------------------------
@@ -367,6 +382,20 @@ class Lavoro:
                            "testo": dati["bozza"], "allegati": [n for n, _ in file]})
         return {"bozza_creata": True, "nota": "Roberto la vede nella pagina e la approva lui."}
 
+    def leggi_memoria(self, nota=None, cerca=None):
+        import memoria
+        if nota:
+            testo = memoria.leggi(nota)
+            return {"nota": nota, "testo": testo[:MAX_TESTO]} if testo else {"nota": nota, "testo": "", "nota_info": "nessuna nota con questo nome",
+                                                                                  "note_esistenti": [n["titolo"] for n in memoria.elenco()][:80]}
+        return {"risultati": memoria.cerca(cerca or "")}
+
+    def ricorda(self, nota, fatto):
+        import memoria
+        lung = memoria.aggiungi(nota, fatto, titolo_nuova=nota)
+        self.ricordati.append(nota)
+        return {"salvato": True, "avviso": "nota lunga: riassumila presto" if lung > memoria.MAX_NOTA else ""}
+
     def mostra_documento(self, documento):
         if documento not in self.documenti:
             return {"errore": "codice documento non valido"}
@@ -464,6 +493,7 @@ def esegui(richiesta, imap_factory, file_caricati=(), storia=(), avanzamento=Non
     if storia:
         contesto = "Ultimi scambi (per contesto):\n" + "\n".join(f"- {chi}: {testo[:500]}" for chi, testo in storia[-6:]) + "\n\n"
     allegati = ("\n\nFile allegati a questo messaggio: " + ", ".join(lavoro.caricati)) if lavoro.caricati else ""
+    contesto = _contesto_memoria() + contesto
     messaggi = [{"role": "system", "content": SISTEMA},
                 {"role": "user", "content": v.copri(contesto + "Richiesta di Roberto: " + richiesta + allegati)}]
     attrezzi = [{"type": "function", "function": a} for a in ATTREZZI]
@@ -504,9 +534,26 @@ def esegui(richiesta, imap_factory, file_caricati=(), storia=(), avanzamento=Non
             risposta = "Ho raggiunto il numero massimo di passi per una richiesta. Ecco cosa ho fatto finora."
     finally:
         lavoro.chiudi()
-    return {"risposta": v.scopri(risposta).strip(), "passi": lavoro.passi,
+    return {"risposta": v.scopri(risposta).strip(), "passi": lavoro.passi, "ricordati": sorted(set(lavoro.ricordati)),
             "documenti": [{"codice": k, **lavoro.documenti[k]} for k in lavoro.mostrati],
             "bozze": lavoro.bozze}
+
+
+def _contesto_memoria():
+    """Appunti su Roberto e indice delle note, messi all'inizio della richiesta (escono coperti dal velo)."""
+    try:
+        import memoria
+        note = memoria.elenco()
+        roberto = memoria.leggi(memoria.NOTA_ROBERTO)
+    except Exception:
+        return ""
+    righe = []
+    if roberto:
+        righe.append("Appunti su Roberto (dal tuo quaderno):\n" + roberto[:3000])
+    altre = [n["titolo"] for n in note if n["nome"] != memoria.NOTA_ROBERTO]
+    if altre:
+        righe.append("Note nel quaderno: " + "; ".join(altre[:150]))
+    return ("\n\n".join(righe) + "\n\n") if righe else ""
 
 
 def descrivi_passo(nome, a):
@@ -523,5 +570,7 @@ def descrivi_passo(nome, a):
         "compila_questionario": lambda: f"Compilo il questionario {a.get('compagnia', '')} {a.get('ramo', '')}",
         "crea_bozza": lambda: f"Preparo la bozza: {a.get('oggetto', '')}",
         "mostra_documento": lambda: "Preparo un documento da mostrarti",
+        "leggi_memoria": lambda: f"Rileggo i miei appunti{': ' + a['nota'] if a.get('nota') else ''}",
+        "ricorda": lambda: f"Mi segno un appunto su {a.get('nota', '')}",
     }
     return frasi.get(nome, lambda: nome)()

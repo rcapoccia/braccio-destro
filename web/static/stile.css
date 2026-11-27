@@ -221,3 +221,25 @@ li.in-corso::before{border-color:var(--accento)!important;border-right-color:tra
 .passi li::before,.passi-vivi li::before{left:-6px;top:9px;width:10px;height:10px}
 .bozza{border-left:1px solid var(--bordo)}
 .b-testa{padding-bottom:4px}
+
+/* elenco chat e memoria */
+.nuova-chat{background:var(--accento)!important;color:#fff!important;font-weight:500;justify-content:flex-start;margin-bottom:10px}
+.nuova-chat svg{stroke:#fff}
+.chat-recenti{margin-top:14px;display:flex;flex-direction:column;gap:2px;min-height:0}
+#cerca-chat{font-size:13.5px;padding:8px 10px;background:var(--fondo);border-color:transparent;margin-bottom:6px}
+.gruppo-chat{font-size:12px;color:var(--secondario);padding:10px 10px 4px;font-weight:500}
+.voce-chat{display:flex;align-items:center;border-radius:10px}
+.voce-chat:hover,.voce-chat.attiva{background:var(--fondo)}
+.voce-chat.attiva .apri-chat{color:var(--testo);font-weight:500}
+#menu .apri-chat{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;font-size:13.5px;padding:7px 10px;color:var(--testo)}
+#menu .azioni-chat{width:auto;padding:4px 8px;color:var(--secondario);opacity:0}
+.voce-chat:hover .azioni-chat,.voce-chat.attiva .azioni-chat{opacity:1}
+@media (hover:none){#menu .azioni-chat{opacity:1}}
+.menu-fondo{margin-top:16px}
+.chat-recenti{flex:1}
+.nota-voce{display:flex;flex-direction:column;gap:2px}
+.nota-voce .og{font-weight:500}
+#nota-aperta{display:flex;flex-direction:column;gap:10px}
+#nota-aperta > .leggero{align-self:flex-start;padding-left:0}
+#nota-testo{font-size:14.5px;line-height:1.55;min-height:50vh}
+.pericolo{color:var(--errore)!important}

@@ -16,6 +16,7 @@ from email.message import EmailMessage
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 os.environ["CLIENTI_DATI"] = tempfile.mkdtemp()
+os.environ["MEMORIA_DATI"] = tempfile.mkdtemp()
 for k, v in {"IMAP_HOST": "imap.esempio.it", "IMAP_USER": "prova@esempio.it", "IMAP_PASS": "finta",
              "SMTP_HOST": "smtp.esempio.it", "MISTRAL_API_KEY": "finta"}.items():
     os.environ.setdefault(k, v)

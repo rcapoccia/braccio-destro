@@ -46,3 +46,19 @@ Solo Roberto, dalla pagina braccio.stital.it (accesso con Face ID).
 tests/test_agente.py: posta e cervello simulati, solo dati finti. Verifica che il cervello non veda i dati veri,
 che la bozza sia creata (non inviata) con nomi e allegati giusti, che il documento finisca nella scheda e che
 un'istruzione nascosta in una mail non venga seguita.
+
+## Memoria e chat (27/11/2026)
+- **Chat**: elenco delle conversazioni nel menu (Oggi, Ieri, Ultimi 7 giorni…), "Nuova chat", cerca, rinomina,
+  elimina. Vega usa come contesto solo la conversazione aperta. La chat unica di prima diventa "Chat di prima".
+- **Memoria (quaderno)**: note leggibili sul server, una per Roberto ("Come lavori tu") e una per cliente o
+  argomento. Vega le rilegge prima di lavorare (attrezzo leggi_memoria) e aggiunge i fatti utili dopo (ricorda).
+  Non salva testi interi, codici fiscali, IBAN né dati sanitari. Roberto le vede nella sezione Memoria, le
+  corregge e le cancella (cancellata = Vega non la ricorda più: diritto all'oblio).
+- Ricerca fatta: Mem0, Zep/Graphiti, Letta (Apache-2.0) richiedono database e memoria in più sul server da 4 GB;
+  si parte con le note (stesso principio della memoria di ChatGPT/Claude) e si passa a uno di loro se non basta.
+
+| Cosa | Dove va | Perché |
+|---|---|---|
+| Conversazioni | Solo server Aruba (/var/lib/braccio-destro/web/conversazioni) | Ritrovare le chat |
+| Note della memoria | Solo server Aruba (/var/lib/braccio-destro/memoria) | Non perdere il contesto tra le chat |
+| Note dentro la richiesta | Kimi su Bedrock UE, coperte dal velo | Vega ricorda cosa è già stato fatto |
