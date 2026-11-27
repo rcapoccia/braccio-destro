@@ -112,6 +112,7 @@ function disegnaMessaggio(v) {
   if (v.tipo === "parere") { box.append(schedaParere(v)); return; }
   if (v.tipo === "ricerca" && v.documenti) { box.append(schedaRicerca(v)); return; }
   if (v.tipo === "elenco") { box.append(schedaElenco(v)); return; }
+  if (v.tipo === "agente") { box.append(schedaVega(v)); return; }
   const m = el("div", "msg braccio" + (v.tipo === "errore" ? " errore-msg" : ""));
   if (v.titolo) m.append(el("span", "titolo-r", v.titolo));
   m.append(document.createTextNode(v.testo || ""));
@@ -127,6 +128,31 @@ function disegnaMessaggio(v) {
   }
   m.append(el("span", "ora", v.ora));
   box.append(m);
+}
+
+function schedaVega(v) {
+  const m = el("div", "msg braccio vega");
+  m.append(el("span", "titolo-r", "Vega"));
+  m.append(el("div", "vega-testo", v.testo || ""));
+  if (v.documenti && v.documenti.length) {
+    const f = el("div", "file");
+    v.documenti.forEach(x => {
+      if (x.disponibile === false) { f.append(el("span", "piccolo", x.nome + " (scaduto)")); return; }
+      const a = el("a", "", "📄 " + x.nome + " · " + x.kb + " KB");
+      a.href = "/api/file/" + encodeURIComponent(x.id); a.target = "_blank"; a.rel = "noopener";
+      f.append(a);
+    });
+    m.append(f);
+  }
+  if (v.passi && v.passi.length) {
+    const d = el("details", "passi");
+    d.append(el("summary", "", "Cosa ho fatto (" + v.passi.length + " passi)"));
+    const ol = el("ol", "");
+    v.passi.forEach(p => ol.append(el("li", "", p)));
+    d.append(ol); m.append(d);
+  }
+  m.append(el("span", "ora", v.ora));
+  return m;
 }
 
 function schedaBozza(v) {
@@ -325,13 +351,18 @@ async function inviaIstruzione(ev) {
     $("#testo").value = ""; $("#file").value = ""; fileScelti = []; disegnaFile();
     togliContesto();
     await caricaChat();
-    const attesa = el("div", "attesa", "Sto lavorando… (una ricerca può richiedere un minuto)");
+    const attesa = el("div", "attesa", "Vega sta lavorando…");
     $("#messaggi").append(attesa); scorriGiu();
     while (true) {
       await new Promise(r => setTimeout(r, 3000));
       const s = await api("/api/lavoro/" + lavoro);
       if (s.stato === "fatto") break;
-      if (s.avanzamento) attesa.textContent = "Sto lavorando sull'elenco: " + s.avanzamento + "… (puoi chiudere l'app, continuo da solo)";
+      if (s.passi && s.passi.length) {
+        attesa.replaceChildren(el("div", "", "Vega sta lavorando… (puoi chiudere l'app, continua da sola)"));
+        const ol = el("ol", "passi-vivi");
+        s.passi.slice(-6).forEach((p, i, a) => ol.append(el("li", i === a.length - 1 ? "ora-in-corso" : "", p)));
+        attesa.append(ol); scorriGiu();
+      }
     }
     await caricaChat();
     contaBozze();

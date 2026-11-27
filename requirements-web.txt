@@ -10,3 +10,12 @@ presidio-analyzer==2.2.366
 spacy==3.8.18
 it_core_news_md @ https://github.com/explosion/spacy-models/releases/download/it_core_news_md-3.8.0/it_core_news_md-3.8.0-py3-none-any.whl
 openpyxl==3.1.5
+# Vega agente: cervello configurabile (Bedrock UE o Mistral UE) e velo sui dati dei clienti
+litellm==1.111.0
+boto3==1.44.12
+gliner==0.2.30
+transformers==4.51.3
+protobuf==7.36.2
+sentencepiece==0.2.3
+tiktoken==0.14.0
+# torch solo CPU (più leggero), da installare con: pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu

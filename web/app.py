@@ -54,6 +54,7 @@ import biblioteca  # noqa: E402
 import clienti  # noqa: E402
 import elenchi  # noqa: E402
 import esperto  # noqa: E402
+import agente  # noqa: E402
 
 DOMINIO = os.environ.get("WEB_DOMINIO", "braccio.stital.it")
 ORIGINE = f"https://{DOMINIO}"
@@ -342,17 +343,8 @@ async def nuova_istruzione(testo: str = Form(""), uid_mail: str = Form(""), file
     _salva_chat({"id": uuid.uuid4().hex, "chi": "roberto", "testo": testo, "ora": time.strftime("%d/%m %H:%M"),
                  "allegati": [n for n, _ in caricati], "mail": uid_mail or None})
     lavori[id_lavoro] = {"stato": "in corso"}
-    excel = [(n, d) for n, d in caricati if n.lower().endswith((".xlsx", ".xlsm"))]
-    m = re.match(r"(?is)^\s*(?:secondo\s+parere|esperto|chiedi\s+all'esperto|domanda)\s*[:\-]\s*(.+)$", testo)
-    if excel and re.search(r"(?i)polizz|titol|elenco|lista", testo):
-        if any(v.get("stato") == "in corso" and v.get("elenco") for v in lavori.values()):
-            raise HTTPException(409, "Sto già lavorando su un elenco: aspetta che finisca.")
-        lavori[id_lavoro]["elenco"] = True
-        lavoratori.submit(_esegui_elenco, id_lavoro, testo, excel[0][1])
-    elif m:
-        lavoratori.submit(_esegui_parere, id_lavoro, m.group(1).strip(), uid_mail)
-    else:
-        lavoratori.submit(_esegui, id_lavoro, testo, uid_mail, caricati)
+    # Vega è un agente: ogni richiesta va a lei, che decide da sola i passi (decisione di Roberto, 27/11/2026).
+    lavoratori.submit(_esegui_agente, id_lavoro, testo, uid_mail, caricati)
     return {"lavoro": id_lavoro}
 
 
@@ -362,6 +354,43 @@ def stato_lavoro(id_lavoro: str):
     if not lav:
         raise HTTPException(404, "Lavoro non trovato.")
     return lav
+
+
+def _esegui_agente(id_lavoro, testo, uid_mail, caricati):
+    """Passa la richiesta a Vega (agente.py) e mette in chat la risposta, i documenti e le bozze."""
+    voce = {"id": uuid.uuid4().hex, "chi": "braccio", "tipo": "agente", "testo": ""}
+    bozze = []
+    try:
+        if uid_mail:   # mail aperta dalla pagina: Vega la riceve come punto di partenza
+            testo += f"\n\n(Riguarda la mail con id A-{uid_mail}: leggila con leggi_mail.)"
+        storia = [("Roberto" if v.get("chi") == "roberto" else "Vega", v.get("testo", ""))
+                  for v in _leggi_json(FILE_CHAT, [])[-7:-1] if v.get("testo")]
+        passi = lavori[id_lavoro]["passi"] = []
+
+        def avanza(p):   # l'avanzamento di un elenco aggiorna la stessa riga invece di aggiungerne centinaia
+            if p.startswith("Elenco:") and passi and passi[-1].startswith("Elenco:"):
+                passi[-1] = p
+            else:
+                passi.append(p)
+        r = agente.esegui(testo, _imap, caricati, storia, avanzamento=avanza)
+        voce.update({"testo": r["risposta"] or "Fatto.", "passi": r["passi"],
+                     "documenti": [_registra_documento(d["nome"], d["dati"]) for d in r["documenti"]]})
+        for b in r["bozze"]:
+            bozze.append({"id": uuid.uuid4().hex, "chi": "braccio", "tipo": "bozza", "mid": b["mid"], "a": b["a"],
+                          "cc": b["cc"], "oggetto": b["oggetto"], "testo": b["testo"], "allegati": b["allegati"],
+                          "controlli": [], "usati": [], "stato_bozza": "da approvare"})
+        log.info("Vega: richiesta eseguita in %d passi, %d bozze", len(r["passi"]), len(bozze))
+    except (agente.TettoRaggiunto, mistral.TettoRaggiunto):
+        voce.update({"tipo": "errore", "testo": "Ho raggiunto il tetto di spesa del mese o il limite di richieste. "
+                                                "Riprova più tardi o alza il tetto."})
+    except Exception as e:
+        log.error("Vega: richiesta non riuscita: %s", type(e).__name__)
+        voce.update({"tipo": "errore", "testo": "Non sono riuscita a completare la richiesta. Riprova o riformulala."})
+    ora = time.strftime("%d/%m %H:%M")
+    for v in [voce] + bozze:
+        v["ora"] = ora
+        _salva_chat(v)
+    lavori[id_lavoro] = {"stato": "fatto", "fine": time.time()}
 
 
 def _esegui(id_lavoro, testo, uid_mail, caricati):
@@ -817,6 +846,17 @@ def _sorveglia_browser():
 
 
 threading.Thread(target=_sorveglia_browser, daemon=True).start()
+
+
+def _prepara_velo():   # carica subito il riconoscitore dei dati personali: la prima richiesta non deve aspettare
+    try:
+        import velo
+        velo._gliner()
+    except Exception as e:
+        log.warning("Velo non pronto all'avvio: %s", type(e).__name__)
+
+
+threading.Thread(target=_prepara_velo, daemon=True).start()
 
 
 @app.get("/api/verifica")

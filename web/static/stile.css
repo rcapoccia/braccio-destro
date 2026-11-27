@@ -101,3 +101,11 @@ code{font-size:13px}
 #scheda-cliente > button.leggero{align-self:flex-start}
 .voce-elenco{width:100%;background:none;border:none;border-top:1px solid var(--bordo);border-radius:0;text-align:left}
 details > summary.r-gruppo{cursor:pointer}
+/* Vega agente */
+.msg.vega .vega-testo{white-space:pre-wrap;line-height:1.5}
+.passi{margin-top:10px;font-size:13px;color:var(--secondario)}
+.passi summary{cursor:pointer;font-weight:600}
+.passi ol,.passi-vivi{margin:6px 0 0;padding-left:20px}
+.passi li,.passi-vivi li{margin:2px 0}
+.passi-vivi{font-size:13px}
+.passi-vivi li.ora-in-corso{color:var(--testo,#222);font-weight:600}
