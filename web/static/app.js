@@ -130,10 +130,23 @@ function disegnaMessaggio(v) {
   box.append(m);
 }
 
+// Testo di Vega: grassetti veri al posto degli asterischi, via le righe "---" e i cancelletti dei titoli.
+// Nessun HTML dal testo: solo nodi di testo e <strong>.
+function testoVega(testo) {
+  const box = el("div", "vega-testo");
+  const pulito = testo.replace(/^\s*(-{3,}|\*{3,}|_{3,})\s*$/gm, "").replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/\n{3,}/g, "\n\n").trim();
+  pulito.split(/(\*\*[^*\n]+?\*\*)/).forEach(pezzo => {
+    if (/^\*\*[^*\n]+\*\*$/.test(pezzo)) box.append(el("strong", "", pezzo.slice(2, -2)));
+    else box.append(document.createTextNode(pezzo));
+  });
+  return box;
+}
+
 function schedaVega(v) {
   const m = el("div", "msg braccio vega");
   m.append(el("span", "titolo-r", "Vega"));
-  m.append(el("div", "vega-testo", v.testo || ""));
+  m.append(testoVega(v.testo || ""));
   if (v.documenti && v.documenti.length) {
     const f = el("div", "file");
     v.documenti.forEach(x => {
