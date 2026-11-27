@@ -116,6 +116,7 @@ function disegnaMessaggio(v) {
   const m = el("div", "msg braccio" + (v.tipo === "errore" ? " errore-msg" : ""));
   if (v.titolo) m.append(el("span", "titolo-r", v.titolo));
   m.append(document.createTextNode(v.testo || ""));
+  if (v.motivo) m.append(el("div", "piccolo", "Motivo tecnico: " + v.motivo));
   if (v.file && v.file.length) {
     const f = el("div", "file");
     v.file.forEach(x => {

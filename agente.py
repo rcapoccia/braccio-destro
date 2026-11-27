@@ -129,6 +129,14 @@ ATTREZZI = [
      "parameters": {"type": "object", "properties": {"compagnia": {"type": "string"}, "ramo": {"type": "string"},
                                                      "documenti": {"type": "array", "items": {"type": "string"}}, "note": {"type": "string"}},
                     "required": ["compagnia", "ramo", "documenti"]}},
+    {"name": "campi_pdf", "description": "Elenca i campi compilabili di un modulo PDF (codice D..): nome del campo, tipo, valore attuale, opzioni. Usalo prima di compila_pdf.",
+     "parameters": {"type": "object", "properties": {"documento": {"type": "string"}}, "required": ["documento"]}},
+    {"name": "compila_pdf", "description": "Compila un modulo PDF che ha campi compilabili (codice D..) con i valori indicati {nome_campo: valore}. Per le caselle usa 'si'/'no'. Ritorna il codice del PDF compilato.",
+     "parameters": {"type": "object", "properties": {"documento": {"type": "string"}, "valori": {"type": "object"},
+                                                     "nome_file": {"type": "string"}}, "required": ["documento", "valori"]}},
+    {"name": "crea_documento", "description": "Crea un PDF di testo (es. le risposte di una domanda da ricopiare, quando il modulo non ha campi compilabili). Ritorna il codice del documento.",
+     "parameters": {"type": "object", "properties": {"titolo": {"type": "string"}, "testo": {"type": "string"},
+                                                     "nome_file": {"type": "string"}}, "required": ["titolo", "testo"]}},
     {"name": "crea_bozza", "description": "Prepara una bozza di mail (NON la invia): va nella cartella Bozze e nella pagina, dove Roberto la approva.",
      "parameters": {"type": "object", "properties": {
          "a": {"type": "array", "items": {"type": "string"}}, "cc": {"type": "array", "items": {"type": "string"}},
@@ -396,6 +404,78 @@ class Lavoro:
         self.ricordati.append(nota)
         return {"salvato": True, "avviso": "nota lunga: riassumila presto" if lung > memoria.MAX_NOTA else ""}
 
+    def campi_pdf(self, documento):
+        from pypdf import PdfReader
+        doc = self.documenti.get(documento)
+        if not doc:
+            return {"errore": "codice documento non valido"}
+        campi = PdfReader(io.BytesIO(doc["dati"])).get_fields() or {}
+        if not campi:
+            return {"compilabile": False, "nota": "Il PDF non ha campi compilabili: prepara le risposte con crea_documento."}
+        out = []
+        for nome, c in list(campi.items())[:300]:
+            tipo = {"/Tx": "testo", "/Btn": "casella", "/Ch": "scelta"}.get(c.get("/FT"), "altro")
+            voce = {"campo": nome, "tipo": tipo, "valore": str(c.get("/V") or "")[:200]}
+            if c.get("/_States_"):
+                voce["opzioni"] = [str(x) for x in c["/_States_"]]
+            elif c.get("/Opt"):
+                voce["opzioni"] = [str(x) for x in c["/Opt"]][:30]
+            out.append(voce)
+        return {"compilabile": True, "campi": out}
+
+    def compila_pdf(self, documento, valori, nome_file=None):
+        from pypdf import PdfReader, PdfWriter
+        doc = self.documenti.get(documento)
+        if not doc:
+            return {"errore": "codice documento non valido"}
+        lettore = PdfReader(io.BytesIO(doc["dati"]))
+        campi = lettore.get_fields() or {}
+        if not campi:
+            return {"errore": "il PDF non ha campi compilabili: usa crea_documento"}
+        scrittore = PdfWriter(clone_from=lettore)
+        pronti, sconosciuti = {}, []
+        for nome, valore in (valori or {}).items():
+            if nome not in campi:
+                sconosciuti.append(nome)
+                continue
+            c = campi[nome]
+            if c.get("/FT") == "/Btn":
+                stati = [str(x) for x in (c.get("/_States_") or []) if str(x) != "/Off"]
+                acceso = str(valore).strip().lower() in ("si", "sì", "x", "true", "1", "yes", "on")
+                valore = (stati[0] if stati else "/Yes") if acceso else "/Off"
+            pronti[nome] = str(valore)
+        for pagina in scrittore.pages:
+            scrittore.update_page_form_field_values(pagina, pronti, auto_regenerate=False)
+        scrittore.set_need_appearances_writer(True)
+        uscita = io.BytesIO()
+        scrittore.write(uscita)
+        nome = nome_file or ("Compilato - " + doc["nome"])
+        if not nome.lower().endswith(".pdf"):
+            nome += ".pdf"
+        codice = self.registra(nome, uscita.getvalue())
+        self.mostra_documento(codice)
+        vuoti = [n for n in campi if n not in pronti and not campi[n].get("/V")]
+        return {"documento": codice, "compilati": len(pronti), "campi_non_trovati": sconosciuti[:30],
+                "campi_rimasti_vuoti": vuoti[:60]}
+
+    def crea_documento(self, titolo, testo, nome_file=None):
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+        from xml.sax.saxutils import escape
+        stili = getSampleStyleSheet()
+        uscita = io.BytesIO()
+        storia = [Paragraph(escape(titolo), stili["Title"]), Spacer(1, 8)]
+        for blocco in (testo or "").split("\n"):
+            storia.append(Paragraph(escape(blocco) or "&nbsp;", stili["BodyText"]))
+        SimpleDocTemplate(uscita, pagesize=A4, title=titolo, leftMargin=56, rightMargin=56).build(storia)
+        nome = nome_file or titolo
+        if not nome.lower().endswith(".pdf"):
+            nome += ".pdf"
+        codice = self.registra(nome, uscita.getvalue())
+        self.mostra_documento(codice)
+        return {"documento": codice}
+
     def mostra_documento(self, documento):
         if documento not in self.documenti:
             return {"errore": "codice documento non valido"}
@@ -461,24 +541,48 @@ def cervello():
            ("mistral", "Mistral Large (UE)")
 
 
-def chiama_modello(messaggi, attrezzi):
-    """Una chiamata al cervello di Vega (via LiteLLM). Ritorna il messaggio dell'assistente."""
+def _una_chiamata(tipo, messaggi, attrezzi):
     import litellm
-    if _spesa() >= TETTO_MESE_USD:
-        raise TettoRaggiunto()
-    tipo, _ = cervello()
     if tipo == "bedrock":   # endpoint compatibile OpenAI di Bedrock, regione UE
         parametri = {"model": "openai/" + BEDROCK_MODELLO, "api_base": BEDROCK_URL, "api_key": chiave_bedrock()}
     else:
         parametri = {"model": RISERVA, "api_base": os.environ.get("MISTRAL_BASE", "https://api.eu.mistral.ai/v1")}
     r = litellm.completion(messages=messaggi, tools=attrezzi, tool_choice="auto", temperature=0.2,
-                           timeout=180, max_tokens=4000, **parametri)
+                           timeout=180, max_tokens=4000, num_retries=0, **parametri)
     try:
         uso = r.usage
         prezzo_in, prezzo_out = PREZZI[tipo]
         _spesa((uso.prompt_tokens * prezzo_in + uso.completion_tokens * prezzo_out) / 1_000_000)
     except Exception:
         _spesa(0.05)   # consumo non leggibile: si conta una stima prudente
+    return r
+
+
+def chiama_modello(messaggi, attrezzi):
+    """Una chiamata al cervello di Vega (via LiteLLM). Se Bedrock rifiuta per troppe richieste o è giù, riprova
+    con attese crescenti; se non va ancora, usa Mistral UE (fornitore già approvato) per non lasciare il lavoro a metà."""
+    if _spesa() >= TETTO_MESE_USD:
+        raise TettoRaggiunto()
+    tipo, _ = cervello()
+    tentativi = [(tipo, 0), (tipo, 8), (tipo, 25)] + ([("mistral", 0)] if tipo == "bedrock" else [("mistral", 15)])
+    ultimo, salta_bedrock = None, False
+    for quale, attesa in tentativi:
+        if quale == "bedrock" and salta_bedrock:
+            continue
+        if attesa:
+            time.sleep(attesa)
+        try:
+            r = _una_chiamata(quale, messaggi, attrezzi)
+            break
+        except Exception as e:
+            ultimo = e
+            codice = getattr(e, "status_code", None)
+            log.warning("Cervello %s non disponibile (%s %s)", quale, type(e).__name__, codice or "")
+            if codice in (400, 401, 403, 404) and quale == "bedrock":
+                salta_bedrock = True   # errore che non passa riprovando
+            continue
+    else:
+        raise ultimo
     m = r.choices[0].message
     return {"content": m.content or "", "tool_calls": [
         {"id": c.id, "name": c.function.name, "arguments": c.function.arguments} for c in (m.tool_calls or [])]}
@@ -570,6 +674,9 @@ def descrivi_passo(nome, a):
         "compila_questionario": lambda: f"Compilo il questionario {a.get('compagnia', '')} {a.get('ramo', '')}",
         "crea_bozza": lambda: f"Preparo la bozza: {a.get('oggetto', '')}",
         "mostra_documento": lambda: "Preparo un documento da mostrarti",
+        "campi_pdf": lambda: "Guardo i campi del modulo",
+        "compila_pdf": lambda: f"Compilo il modulo{': ' + a['nome_file'] if a.get('nome_file') else ''}",
+        "crea_documento": lambda: f"Scrivo il documento: {a.get('titolo', '')}",
         "leggi_memoria": lambda: f"Rileggo i miei appunti{': ' + a['nota'] if a.get('nota') else ''}",
         "ricorda": lambda: f"Mi segno un appunto su {a.get('nota', '')}",
     }

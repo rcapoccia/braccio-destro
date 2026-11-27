@@ -568,8 +568,10 @@ def _esegui_agente(id_lavoro, testo, uid_mail, caricati, cid=None):
         voce.update({"tipo": "errore", "testo": "Ho raggiunto il tetto di spesa del mese o il limite di richieste. "
                                                 "Riprova più tardi o alza il tetto."})
     except Exception as e:
-        log.error("Vega: richiesta non riuscita: %s", type(e).__name__)
-        voce.update({"tipo": "errore", "testo": "Non sono riuscita a completare la richiesta. Riprova o riformulala."})
+        motivo = type(e).__name__ + (f" {e.status_code}" if getattr(e, "status_code", None) else "")
+        log.error("Vega: richiesta non riuscita: %s", motivo, exc_info=log.isEnabledFor(logging.DEBUG))
+        voce.update({"tipo": "errore", "testo": "Non sono riuscita a completare la richiesta. Riprova o riformulala.",
+                     "motivo": motivo})
     ora = time.strftime("%d/%m %H:%M")
     for v in [voce] + bozze:
         v["ora"] = ora
