@@ -415,6 +415,27 @@ def _tutte_le_voci():
             yield cid, v
 
 
+def _cerca_nelle_chat(testo):
+    """Per Vega: frasi delle chat passate che contengono le parole cercate."""
+    parole = [w for w in re.findall(r"\w+", (testo or "").lower()) if len(w) > 2]
+    if not parole:
+        return []
+    with blocco:
+        indice = dict(_indice())
+    out = []
+    for cid, info in sorted(indice.items(), key=lambda x: x[1]["aggiornata"], reverse=True):
+        for v in _leggi_conv(cid):
+            t = v.get("testo") or ""
+            basso = t.lower()
+            if all(w in basso for w in parole):
+                i = basso.find(parole[0])
+                out.append({"chat": info["titolo"], "chi": "Roberto" if v.get("chi") == "roberto" else "Vega",
+                            "quando": v.get("ora", ""), "estratto": t[max(0, i - 200):i + 500]})
+                if len(out) >= 20:
+                    return out
+    return out
+
+
 @app.get("/api/conversazioni")
 def elenco_conversazioni(q: str = ""):
     with blocco:
@@ -560,7 +581,8 @@ def _esegui_agente(id_lavoro, testo, uid_mail, caricati, cid=None):
                 passi[-1] = p
             else:
                 passi.append(p)
-        r = agente.esegui(testo, _imap, _documenti_della_chat(cid) or caricati, storia, avanzamento=avanza)
+        r = agente.esegui(testo, _imap, _documenti_della_chat(cid) or caricati, storia, avanzamento=avanza,
+                          cerca_chat=_cerca_nelle_chat)
         voce.update({"testo": r["risposta"] or "Fatto.", "passi": r["passi"], "ricordati": r.get("ricordati", []),
                      "documenti": [_registra_documento(d["nome"], d["dati"], cid) for d in r["documenti"]]})
         for b in r["bozze"]:

@@ -66,3 +66,33 @@ def ocr_pagine(dati_pdf):
     risposta = _post("/ocr", {"model": MODELLO_OCR, "document": {"type": "document_url", "document_url": url}},
                      timeout=300)
     return [p.get("markdown", "") for p in risposta.get("pages", [])]
+
+
+def ocr_immagine(dati, tipo="image/png"):
+    """Testo di una foto o immagine (es. foto di un documento fatta col telefono)."""
+    url = f"data:{tipo};base64," + base64.b64encode(dati).decode()
+    risposta = _post("/ocr", {"model": MODELLO_OCR, "document": {"type": "image_url", "image_url": url}},
+                     timeout=300)
+    return "\n\n".join(p.get("markdown", "") for p in risposta.get("pages", []))
+
+
+def cerca_web(domanda, modello=None):
+    """Ricerca sul web con lo strumento web_search di Mistral (Conversations API, endpoint UE).
+    La domanda deve essere generica: chi chiama non deve metterci dati dei clienti."""
+    r = _post("/conversations", {"model": modello or os.environ.get("MISTRAL_WEB_MODEL", "mistral-medium-latest"),
+                                 "inputs": [{"role": "user", "content": domanda}],
+                                 "tools": [{"type": "web_search"}], "store": False}, timeout=180)
+    testo, fonti = [], []
+    for uscita in r.get("outputs", []):
+        if uscita.get("type") != "message.output":
+            continue
+        contenuto = uscita.get("content")
+        if isinstance(contenuto, str):
+            testo.append(contenuto)
+            continue
+        for pezzo in contenuto or []:
+            if pezzo.get("type") == "text":
+                testo.append(pezzo.get("text", ""))
+            elif pezzo.get("type") == "tool_reference":
+                fonti.append({"titolo": pezzo.get("title", ""), "url": pezzo.get("url", "")})
+    return {"risposta": "".join(testo).strip(), "fonti": fonti[:12]}

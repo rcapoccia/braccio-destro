@@ -62,3 +62,23 @@ un'istruzione nascosta in una mail non venga seguita.
 | Conversazioni | Solo server Aruba (/var/lib/braccio-destro/web/conversazioni) | Ritrovare le chat |
 | Note della memoria | Solo server Aruba (/var/lib/braccio-destro/memoria) | Non perdere il contesto tra le chat |
 | Note dentro la richiesta | Kimi su Bedrock UE, coperte dal velo | Vega ricorda cosa è già stato fatto |
+
+## Vega come i migliori assistenti (27/11/2026)
+- **Mani universali**: esegui_codice scrive ed esegue piccoli programmi Python nella "scatola chiusa"
+  (servizio vega-scatola: utente dedicato, niente rete, sistema in sola lettura, nessun accesso a posta, chiavi
+  e dati del braccio destro, limiti di memoria/tempo/processi; cartella di lavoro cancellata a ogni lavoro).
+- **Controllo del lavoro**: leggi_documento per rileggere quello che ha prodotto prima di consegnarlo.
+- **Moduli**: compila il modulo originale (con campi: compila_pdf; righe e caselle: scrivi_sul_modulo).
+- **Web**: cerca_web (strumento web_search di Mistral, endpoint UE, store=false) e leggi_pagina_web (solo https
+  verso indirizzi pubblici). Gli argomenti verso internet NON vengono "scoperti": se contengono segnaposto la
+  richiesta è bloccata, quindi i dati dei clienti non escono mai verso il web.
+- **Foto e scansioni**: OCR Mistral UE (già in uso).
+- **Chat passate**: cerca_nelle_chat; i file allegati in una chat restano sul server finché c'è la chat.
+- **Documenti** si aprono dentro la pagina (visore con Chiudi), pagine rese come immagini sul server.
+
+| Cosa | Dove va | Perché |
+|---|---|---|
+| File delle chat (allegati e prodotti) | Solo server Aruba (/var/lib/braccio-destro/web/documenti), cancellati con la chat | Riusarli nelle richieste successive |
+| Programmi di Vega e file su cui lavorano | Solo server Aruba, scatola chiusa, cancellati a fine lavoro | Lavorare qualsiasi file |
+| Domande generiche per il web (senza dati dei clienti) | Mistral UE (web search) e i siti consultati | Informazioni aggiornate |
+| Foto di documenti | Mistral OCR UE (come per i PDF scansionati) | Leggerle |
