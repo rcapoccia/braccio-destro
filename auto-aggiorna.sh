@@ -36,16 +36,23 @@ if ! (cd "$TMP" && python3 -c 'import ast,sys; [ast.parse(open(f).read()) for f 
   exit 1
 fi
 
-REQ_PRIMA=$(sha256sum "$DEST/requirements-web.txt" 2>/dev/null | cut -d' ' -f1 || true)
+# Librerie nuove: si installano PRIMA di sostituire i file. Se l'installazione fallisce si tiene la versione
+# attuale e si riprova al giro successivo (il segno dell'ultima installazione riuscita è in $STATO/librerie).
+REQ_NUOVE=$(sha256sum "$TMP/requirements-web.txt" | cut -d' ' -f1)
+REQ_FATTE=$(cat "$STATO/librerie" 2>/dev/null || true)
+if [[ -x "$DEST/venv/bin/pip" && "$REQ_NUOVE" != "$REQ_FATTE" ]]; then
+  if ! "$DEST/venv/bin/pip" install -q -r "$TMP/requirements-web.txt"; then
+    echo "Librerie della versione $SHA non installate: tengo quella attuale e riprovo."
+    exit 1
+  fi
+  echo "$REQ_NUOVE" > "$STATO/librerie"
+fi
 for f in "${FILE[@]}"; do
   install -d -m 755 "$DEST/$(dirname "$f")"
   install -m 644 "$TMP/$f" "$DEST/$f"
 done
 install -m 755 "$TMP/auto-aggiorna.sh" /usr/local/sbin/braccio-auto-aggiorna
 install -m 755 "$TMP/braccio-codice.sh" /usr/local/sbin/braccio-codice
-if [[ -x "$DEST/venv/bin/pip" && "$REQ_PRIMA" != "$(sha256sum "$DEST/requirements-web.txt" | cut -d' ' -f1)" ]]; then
-  "$DEST/venv/bin/pip" install -q -r "$DEST/requirements-web.txt"
-fi
 echo "$SHA" > "$STATO/versione"
 systemctl try-restart braccio-web.service || true
 esegui_sistema || echo "Configurazione di sistema non riuscita: riprovo al prossimo giro."

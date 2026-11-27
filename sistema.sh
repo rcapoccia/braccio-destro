@@ -7,6 +7,22 @@ DOMINIO=braccio.stital.it
 export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a
 APT="apt-get -o DPkg::Lock::Timeout=1200"
 
+# Vega: cartella per il modello che riconosce i dati dei clienti, più memoria per il servizio della pagina,
+# riserva di memoria su disco (swap) se manca. Va per primo, così funziona anche se il resto fallisce.
+install -d -o braccio -g braccio -m 700 /var/lib/braccio-destro/modelli
+mkdir -p /etc/systemd/system/braccio-web.service.d
+cat > /etc/systemd/system/braccio-web.service.d/vega.conf <<'U'
+[Service]
+Environment=HF_HOME=/var/lib/braccio-destro/modelli
+MemoryMax=2800M
+U
+if [[ -z "$(swapon --noheadings)" && ! -f /swapfile ]] && [[ $(df --output=avail -k / | tail -1) -gt 8000000 ]]; then
+  fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile >/dev/null && swapon /swapfile
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+systemctl daemon-reload
+systemctl try-restart braccio-web.service || true
+
 # Schermo virtuale + browser per i collegamenti (Navisio, intermediari.ai)
 $APT install -yq xvfb x11vnc novnc websockify fonts-dejavu-core >/dev/null
 export PLAYWRIGHT_BROWSERS_PATH=$DEST/ms-playwright

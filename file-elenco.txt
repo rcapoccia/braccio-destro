@@ -21,3 +21,5 @@ esperto.py
 biblioteca.py
 clienti.py
 elenchi.py
+velo.py
+agente.py
