@@ -9,6 +9,9 @@
 #  3. Prima di sostituire i file si salva la versione attuale. Se dopo l'aggiornamento la pagina non risponde,
 #     si torna da soli alla versione di prima e quella difettosa non viene più riprovata.
 #  4. Nessun dato personale nei messaggi.
+#
+# Limite noto: il controllo dei collaudi protegge dagli errori, non da chi riuscisse a scrivere nel repo
+# (potrebbe cambiare anche i collaudi). Per questo il repo va tenuto privato e con accesso a due fattori.
 set -euo pipefail
 
 REPO="${VEGA_REPO:-rcapoccia/braccio-destro}"
@@ -25,6 +28,10 @@ URL_PUBBLICO="${VEGA_URL_PUBBLICO:-https://github.com/$REPO.git}"
 URL_PRIVATO="${VEGA_URL_PRIVATO:-git@github.com:$REPO.git}"
 # Chiave pubblica ufficiale di GitHub: il server parla solo con chi la possiede.
 GITHUB_HOST='github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl'
+
+export GIT_TERMINAL_PROMPT=0
+TMP=""
+trap '[[ -n "$TMP" ]] && rm -rf "$TMP"' EXIT
 
 dire() { echo "$*"; }
 
@@ -97,10 +104,36 @@ librerie() {         # $1 = requirements; installa solo se cambiate. Torna 1 se 
   echo "$nuove" > "$STATO/librerie"
 }
 
+gestito() {          # il servizio è di quelli che devono stare accesi?
+  systemctl is-active -q "$SERVIZIO" || systemctl is-enabled -q "$SERVIZIO" 2>/dev/null || systemctl is-failed -q "$SERVIZIO"
+}
+
+ripristina() {       # rimette la versione salvata. $1 = elenco dei file della versione da togliere (facoltativo)
+  local salva="$STATO/salvata" f
+  [[ -d "$salva/file" ]] || return 1
+  if [[ -n "${1:-}" && -f "$1" ]]; then
+    while read -r f; do [[ -f "$salva/file/$f" ]] || rm -f "$DEST/$f"; done < "$1"
+  fi
+  (cd "$salva/file" && find . -type f -print0 | while IFS= read -r -d '' f; do install -D -m 644 "$f" "$DEST/$f"; done)
+  for f in braccio-auto-aggiorna braccio-codice; do [[ -f "$salva/$f" ]] && install -m 755 "$salva/$f" "$SBIN/$f"; done
+  if [[ -f "$DEST/requirements-web.txt" ]]; then
+    librerie "$DEST/requirements-web.txt" || rm -f "$STATO/librerie"   # si riproverà al prossimo giro
+  fi
+  systemctl reset-failed "$SERVIZIO" 2>/dev/null || true
+  if gestito; then systemctl restart "$SERVIZIO" || true; fi
+  rm -f "$STATO/in-corso" "$STATO/in-corso.elenco"
+}
+
 principale() {
   install -d -m 700 "$STATO"
   exec 9>"$STATO/blocco"; flock -n 9 || exit 0          # mai due aggiornamenti insieme
   command -v git >/dev/null || { apt-get -o DPkg::Lock::Timeout=600 install -yq git openssh-client >/dev/null; }
+
+  # Un aggiornamento interrotto a metà (spegnimento, disco pieno): si rimette la versione salvata.
+  if [[ -f "$STATO/in-corso" ]]; then
+    dire "L'ultimo aggiornamento si era interrotto a metà: rimetto la versione di prima."
+    ripristina "$STATO/in-corso.elenco" || true
+  fi
 
   esegui_sistema || dire "Configurazione di sistema non riuscita: riprovo al prossimo giro."
   scegli_canale
@@ -114,7 +147,7 @@ principale() {
     pubblica_stato "l'ultima versione era difettosa: tengo quella di prima"; exit 0
   fi
 
-  local tmp; tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+  TMP=$(mktemp -d); local tmp=$TMP
   mkdir "$tmp/nuova" "$tmp/git"
   git -C "$tmp/git" init -q
   git -C "$tmp/git" fetch -q --depth 1 "$URL" "refs/heads/$RAMO"
@@ -125,7 +158,14 @@ principale() {
 
   # --- controlli prima di toccare qualunque cosa ---
   local elenco="$tmp/elenco" f ok=1
-  grep -v '^\s*$' "$tmp/nuova/file-elenco.txt" > "$elenco"
+  grep -v '^\s*$' "$tmp/nuova/file-elenco.txt" > "$elenco" || true
+  # nomi dei file: solo dentro la cartella di Vega (niente "..", percorsi assoluti, spazi) e nessun collegamento
+  if grep -qvE '^[A-Za-z0-9_][A-Za-z0-9._/-]*$' "$elenco" || grep -qE '(^|/)\.\.(/|$)' "$elenco"; then
+    dire "L'elenco dei file contiene nomi non ammessi."; ok=0
+  fi
+  if git -C "$tmp/git" ls-tree -r FETCH_HEAD | grep -q '^120000'; then
+    dire "La versione contiene collegamenti a file (non ammessi)."; ok=0
+  fi
   while read -r f; do [[ -f "$tmp/nuova/$f" ]] || { dire "Manca il file $f."; ok=0; }; done < "$elenco"
   for f in auto-aggiorna.sh braccio-codice.sh; do [[ -f "$tmp/nuova/$f" ]] || ok=0; done
   if [[ $ok == 1 ]]; then
@@ -155,32 +195,36 @@ principale() {
   fi
 
   # --- sostituzione, riavvio, verifica ---
-  local era_attiva=0; systemctl is-active -q "$SERVIZIO" && era_attiva=1
+  local era_gestito=0; gestito && era_gestito=1
+  cp "$elenco" "$STATO/in-corso.elenco"; echo "$sha" > "$STATO/in-corso"
   installa_da "$tmp/nuova" "$elenco"
-  if [[ $era_attiva == 1 ]]; then systemctl restart "$SERVIZIO" || true; fi
-  if [[ $era_attiva == 1 ]] && ! in_salute; then
-    dire "Con la versione ${sha:0:7} la pagina non risponde: torno alla versione di prima."
-    while read -r f; do                                  # toglie i file nuovi che prima non c'erano
-      [[ -f "$salva/file/$f" ]] || rm -f "$DEST/$f"
-    done < "$elenco"
-    (cd "$salva/file" && find . -type f -print0 | while IFS= read -r -d '' f; do install -D -m 644 "$f" "$DEST/$f"; done)
-    for f in braccio-auto-aggiorna braccio-codice; do [[ -f "$salva/$f" ]] && install -m 755 "$salva/$f" "$SBIN/$f"; done
-    [[ -f "$DEST/requirements-web.txt" ]] && { librerie "$DEST/requirements-web.txt" || true; }
+  if [[ $era_gestito == 1 ]]; then
     systemctl reset-failed "$SERVIZIO" 2>/dev/null || true
     systemctl restart "$SERVIZIO" || true
-    echo "$sha" > "$STATO/scartata"
+  fi
+  if [[ $era_gestito == 1 ]] && ! in_salute; then
+    dire "Con la versione ${sha:0:7} la pagina non risponde: torno alla versione di prima."
+    ripristina "$elenco" || true
     if in_salute; then
+      # la versione di prima risponde: il difetto è della nuova, che non verrà riprovata
+      echo "$sha" > "$STATO/scartata"
       pubblica_stato "versione ${sha:0:7} difettosa: tornato alla precedente"
     else
+      # non risponde nemmeno quella di prima: il problema non è la versione, la si riproverà
       pubblica_stato "ATTENZIONE: la pagina non risponde nemmeno con la versione di prima"
     fi
     exit 1
   fi
+  rm -f "$STATO/in-corso" "$STATO/in-corso.elenco"
 
   [[ -n "$attuale" ]] && echo "$attuale" > "$STATO/precedente"
   echo "$sha" > "$STATO/versione"
   cp "$elenco" "$STATO/elenco"
   esegui_sistema || dire "Configurazione di sistema non riuscita: riprovo al prossimo giro."
+  if [[ $era_gestito == 1 ]] && ! in_salute; then
+    pubblica_stato "ATTENZIONE: dopo la configurazione di sistema la pagina non risponde"
+    dire "Dopo la configurazione di sistema la pagina non risponde."; exit 1
+  fi
   pubblica_stato "aggiornato"
   dire "Aggiornato alla versione ${sha:0:7} (canale $CANALE)."
 }

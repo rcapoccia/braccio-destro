@@ -113,5 +113,11 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Segna la versione come verificata
-        run: git push --force origin "$GITHUB_SHA:refs/heads/produzione-verificata"
+        with:
+          fetch-depth: 0
+      - name: Segna la versione come verificata (mai una più vecchia di quella già verificata)
+        run: |
+          if git fetch -q origin produzione-verificata 2>/dev/null; then
+            git merge-base --is-ancestor FETCH_HEAD "$GITHUB_SHA" || { echo "::error::Questa versione non discende da quella già verificata: non la segno."; exit 1; }
+          fi
+          git push origin "$GITHUB_SHA:refs/heads/produzione-verificata"

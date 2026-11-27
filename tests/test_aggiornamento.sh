@@ -67,7 +67,8 @@ systemctl start vega-prova-agg.service; sleep 2
 echo "== 2. versione buona"
 servizio due
 V2=$(pubblica due)
-aggiorna
+aggiorna || errore "un aggiornamento riuscito ha segnalato un errore"
+[[ -z "$(ls -d /tmp/tmp.* 2>/dev/null | xargs -r -I{} find {} -maxdepth 1 -name nuova)" ]] || errore "restano cartelle temporanee dopo l'aggiornamento"
 [[ "$(stato versione)" == "$V2" && "$(servito)" == due ]] && bene "versione due installata" || errore "la versione buona non si è installata (servito: $(servito))"
 [[ "$(stato precedente)" == "$V1" ]] || errore "non ricorda la versione precedente"
 
@@ -98,18 +99,38 @@ V5=$(pubblica cinque-manca-file)
 aggiorna && errore "una versione incompleta è stata accettata"
 [[ "$(stato versione)" == "$V2" && "$(servito)" == due ]] && bene "rifiutata" || errore "la versione incompleta ha toccato il servizio"
 
-echo "== 6. dopo gli scarti, una versione buona si installa"
+echo "== 5b. nomi di file che escono dalla cartella, e collegamenti: rifiutati"
 sed -i '/non-esiste.py/d' "$T/lavoro/file-elenco.txt"
+cp "$T/lavoro/file-elenco.txt" "$T/elenco-buono"
+echo "../fuori.py" >> "$T/lavoro/file-elenco.txt"; servizio cinque-b
+pubblica cinque-b-fuori >/dev/null
+aggiorna && errore "una versione che scrive fuori dalla cartella è stata accettata"
+[[ ! -e "$T/fuori.py" && "$(stato versione)" == "$V2" ]] && bene "percorso esterno rifiutato" || errore "scritto un file fuori dalla cartella di Vega"
+cp "$T/elenco-buono" "$T/lavoro/file-elenco.txt"; echo "segreto.txt" >> "$T/lavoro/file-elenco.txt"
+echo riservato > "$T/riservato"; ln -s "$T/riservato" "$T/lavoro/segreto.txt"
+pubblica cinque-c-collegamento >/dev/null
+aggiorna && errore "una versione con un collegamento a un file esterno è stata accettata"
+[[ ! -e "$VEGA_DEST/segreto.txt" && "$(stato versione)" == "$V2" ]] && bene "collegamento rifiutato" || errore "un collegamento ha copiato un file esterno"
+rm -f "$T/lavoro/segreto.txt"; cp "$T/elenco-buono" "$T/lavoro/file-elenco.txt"
+
+echo "== 5c. aggiornamento interrotto a metà: al giro dopo si rimette la versione salvata"
+echo "$V2" > "$VEGA_STATO/in-corso"; cp "$T/elenco-buono" "$VEGA_STATO/in-corso.elenco"
+echo "print('mezzo installato')" > "$VEGA_DEST/servizio.py"
+git -C "$T/lavoro" push -q -f origin "$V2:refs/heads/produzione-verificata"
+aggiorna || errore "il ripristino dopo un'interruzione ha segnalato un errore"
+[[ ! -f "$VEGA_STATO/in-corso" && "$(servito)" == due ]] && bene "versione salvata rimessa" || errore "dopo un'interruzione il servizio non è tornato alla versione salvata (servito: $(servito))"
+
+echo "== 6. dopo gli scarti, una versione buona si installa"
 servizio sei
 V6=$(pubblica sei)
-aggiorna
+aggiorna || errore "un aggiornamento riuscito ha segnalato un errore"
 [[ "$(stato versione)" == "$V6" && "$(servito)" == sei ]] && bene "versione sei installata" || errore "dopo gli scarti la versione buona non si è installata (servito: $(servito))"
 python3 -c "import json,sys; d=json.load(open('$VEGA_VETRINA/stato.json')); assert d['canale']=='pubblico' and d['esito']=='aggiornato', d" || errore "lo stato per la pagina non è corretto"
 
 echo "== 7. la chiave di GitHub nello script è quella ufficiale"
 NOSTRA=$(grep -o "ssh-ed25519 [A-Za-z0-9+/=]*" "$QUI/auto-aggiorna.sh" | head -1)
 UFFICIALE=$(curl -fsS --max-time 20 https://api.github.com/meta | python3 -c "import json,sys; print('\n'.join(json.load(sys.stdin).get('ssh_keys', [])))" || true)
-if [[ -z "$UFFICIALE" ]]; then errore "non riesco a leggere le chiavi ufficiali di GitHub"
+if [[ -z "$UFFICIALE" ]]; then echo "::warning title=Aggiornamento::non riesco a leggere le chiavi ufficiali di GitHub: controllo saltato"
 elif grep -qxF "$NOSTRA" <<<"$UFFICIALE"; then bene "chiave ufficiale"
 else errore "la chiave di GitHub nello script NON è tra quelle ufficiali"; fi
 
