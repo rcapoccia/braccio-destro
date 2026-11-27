@@ -42,9 +42,12 @@ def main():
         errori.append("un programma infinito non viene fermato")
     else:
         print("programma infinito fermato")
-    r = prova("import pandas, docx, openpyxl, pypdf, pdfplumber, reportlab, pypdfium2; print('librerie ok')")
-    if "librerie ok" not in r["uscita"]:
-        errori.append(f"librerie mancanti nella scatola: {r['errori'][-300:]}")
+    for lib in ("pypdf", "pdfplumber", "reportlab", "pypdfium2", "openpyxl", "docx", "PIL", "pandas"):
+        r = prova(f"import {lib}; print('ok')")
+        if r["uscita"].strip() != "ok":
+            errori.append(f"libreria {lib} non funziona nella scatola (uscita {r['codice_uscita']}): {r['errori'][-300:]}")
+        else:
+            print(f"libreria {lib} ok")
     print("\nESITO:", "OK" if not errori else "ERRORI:\n- " + "\n- ".join(errori))
     for e in errori:
         print(f"::error title=Scatola chiusa::{e}")
