@@ -259,3 +259,4 @@ li.in-corso::before{border-color:var(--accento)!important;border-right-color:tra
 .visore-pagina{width:100%;max-width:900px;background:#fff;border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,.35)}
 #visore-pagine .aiuto{color:#dfe6ef}
 body.visore-aperto{overflow:hidden}
+.stato-sistema{white-space:pre-wrap;font-family:inherit;font-size:13.5px;line-height:1.6;margin:0}

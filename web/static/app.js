@@ -22,6 +22,7 @@ function disegnaFile() {
 // --- Chiamate al server -------------------------------------------------------
 async function api(percorso, opzioni = {}) {
   const o = { credentials: "same-origin", ...opzioni };
+  if (o.attesa) { const c = new AbortController(); setTimeout(() => c.abort(), o.attesa); o.signal = c.signal; delete o.attesa; }
   o.headers = { "x-braccio": "1", ...(o.headers || {}) };
   if (o.json !== undefined) {
     o.body = JSON.stringify(o.json);
@@ -148,15 +149,20 @@ async function apriFile(id, nome) {
   box.replaceChildren(el("p", "aiuto", "Apro il documento…"));
   v.classList.remove("nascosto"); document.body.classList.add("visore-aperto");
   try {
-    const info = await api("/api/file/" + encodeURIComponent(id) + "/info");
+    const info = await api("/api/file/" + encodeURIComponent(id) + "/info", { attesa: 20000 });
     box.replaceChildren();
     if (!info.pdf) { box.append(el("p", "aiuto", "Questo file non si può vedere qui: usa «Scarica».")); return; }
     for (let n = 1; n <= info.pagine; n++) {
-      const img = el("img", "visore-pagina"); img.loading = "lazy"; img.alt = "Pagina " + n;
+      const img = el("img", "visore-pagina"); img.alt = "Pagina " + n;
+      img.onerror = () => img.replaceWith(el("p", "aiuto", "Pagina " + n + " non visualizzabile: usa «Scarica»."));
       img.src = "/api/file/" + encodeURIComponent(id) + "/pagina/" + n;
       box.append(img);
     }
-  } catch (e) { box.replaceChildren(el("p", "aiuto", e.message)); }
+  } catch (e) {
+    box.replaceChildren(el("p", "aiuto", e.name === "AbortError"
+      ? "Il server non ha risposto in tempo. Usa «Scarica» per aprirlo, e mandami la schermata di Impostazioni → Stato del sistema."
+      : e.message + " — usa «Scarica» per aprirlo."));
+  }
 }
 function chiudiFile() { $("#visore").classList.add("nascosto"); document.body.classList.remove("visore-aperto"); $("#visore-pagine").replaceChildren(); }
 
@@ -473,6 +479,7 @@ async function mostraVista(nome, senzaCaricare) {
     if (nome === "collegamenti") { await caricaCollegamenti(); await caricaScaleway(); await caricaDispositivi(); }
     if (nome === "biblioteca") await caricaBiblioteca();
     if (nome === "memoria") await caricaMemoria();
+    if (nome === "collegamenti") caricaStato();
     if (nome === "chat") scorriGiu();
   } catch (e) { $("#vista-" + nome).append(el("p", "errore", e.message)); }
 }
@@ -679,6 +686,20 @@ async function avvia() {
   await caricaChat().catch(() => {});
   caricaConversazioni().catch(() => {});
   contaBozze();
+}
+
+// --- Stato del sistema (Impostazioni) ---------------------------------------------------
+async function caricaStato() {
+  const box = $("#stato-sistema"); box.textContent = "Controllo…";
+  try {
+    const s = await api("/api/stato", { attesa: 30000 });
+    const ok = b => b ? "✅" : "❌";
+    const lib = Object.entries(s.librerie).map(([k, v]) => ok(v) + " " + k).join("   ");
+    const m = s.memoria_mb || {};
+    box.textContent = `Versione ${s.versione} · accesa da ${s.avviata_da_minuti} min\n` +
+      `Cervello: ${s.cervello}\nScatola per i programmi: ${ok(s.scatola)}\nLibrerie: ${lib}\n` +
+      `Memoria libera: ${m.MemAvailable ?? "?"} MB su ${m.MemTotal ?? "?"} · riserva su disco ${m.SwapTotal ?? 0} MB`;
+  } catch (e) { box.textContent = e.name === "AbortError" ? "Il server non risponde in tempo." : e.message; }
 }
 
 // --- Memoria di Vega (il quaderno) ---------------------------------------------------

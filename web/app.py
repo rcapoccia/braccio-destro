@@ -817,6 +817,40 @@ def _elimina_documenti_chat(cid):
                     pass
 
 
+AVVIO = time.time()
+
+
+@app.get("/api/stato")
+def stato_sistema():
+    """Stato del sistema per Roberto (Impostazioni): versione, librerie, scatola, memoria. Nessun dato personale."""
+    import importlib.util
+    try:
+        with open("/var/lib/braccio-destro-aggiornamenti/versione") as f:
+            versione = f.read().strip()[:7]
+    except OSError:
+        versione = "?"
+    librerie = {n: importlib.util.find_spec(n) is not None
+                for n in ("pypdfium2", "pdfplumber", "docx", "pandas", "litellm", "gliner", "openpyxl")}
+    scatola_ok = False
+    try:
+        import scatola
+        scatola_ok = scatola.chiedi("print(2+2)", [], socket_path=os.environ.get("SCATOLA_SOCKET", scatola.SOCKET),
+                                    attesa=20)["uscita"].strip() == "4"
+    except Exception:
+        scatola_ok = False
+    memoria_mb = {}
+    try:
+        with open("/proc/meminfo") as f:
+            for riga in f:
+                k, v = riga.split(":", 1)
+                if k in ("MemTotal", "MemAvailable", "SwapTotal", "SwapFree"):
+                    memoria_mb[k] = int(v.split()[0]) // 1024
+    except OSError:
+        pass
+    return {"versione": versione, "avviata_da_minuti": int((time.time() - AVVIO) / 60), "librerie": librerie,
+            "scatola": scatola_ok, "memoria_mb": memoria_mb, "cervello": agente.cervello()[1]}
+
+
 @app.get("/api/file/{id_doc}/info")
 def info_documento(id_doc: str):
     trovato = _documento(id_doc)
