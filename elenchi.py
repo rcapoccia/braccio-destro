@@ -3,7 +3,7 @@ Braccio destro - Lavori su un elenco (Excel)
 
 Esempio: Roberto allega l'estrazione dei titoli e chiede "trovami nella posta tutte le polizze dell'elenco
 con decorrenza 2025; se nel 2025 trovi solo la quietanza, cerca la polizza nel 2024; salvale nelle schede clienti".
-Per ogni polizza dell'elenco: cerca nella posta il numero di polizza, legge i PDF trovati, fa decidere a Mistral
+Per ogni polizza dell'elenco: cerca nella posta il numero di polizza e il nome del cliente, legge i PDF trovati, fa decidere a Mistral
 quale è il documento di polizza e con che decorrenza, e salva il documento giusto nella scheda del cliente.
 Alla fine prepara un Excel con l'esito riga per riga.
 """
@@ -23,6 +23,7 @@ import questionari
 
 log = logging.getLogger("elenchi")
 MAX_MAIL_PER_POLIZZA = 12
+MAX_MAIL_PER_NOME = 15
 
 SISTEMA = """Sei l'assistente di un broker. Cerco il documento della polizza n. {numero} ({compagnia}, {rischio},
 cliente {cliente}). Ricevi PDF trovati nella posta (nome file, oggetto della mail, inizio del testo).
@@ -88,6 +89,19 @@ def _varianti_numero(numero):
     return v
 
 
+def _varianti_nome(cliente):
+    """"FUMANTI ALVARO" -> anche "ALVARO FUMANTI"; "ROSSI SRL" -> anche "ROSSI"."""
+    import ricerca
+    nome = re.sub(r"\s+", " ", cliente or "").strip()
+    if len(nome) < 4:
+        return []
+    v = ricerca.varianti(nome)
+    parole = nome.split(" ")
+    if len(parole) == 2 and not re.search(r"(?i)\b(srl|spa|snc|sas|ss)\b", nome):
+        v.append(f"{parole[1]} {parole[0]}")
+    return [x for x in dict.fromkeys(v) if len(x) >= 4][:4]
+
+
 def _solo_cifre(testo):
     return re.sub(r"[^0-9A-Za-z]", "", testo or "").upper()
 
@@ -102,16 +116,23 @@ def cerca_polizza(imap, voce, anno, anno_riserva):
     dal = f"01-Jan-{min(anno, anno_riserva)}"
     numeri = _varianti_numero(voce["polizza"])
     chiave = _solo_cifre(voce["polizza"].split("/")[-1])
+    nomi = _varianti_nome(voce.get("cliente", ""))
     cartelle = ["INBOX"] + ([pratiche._cartella_inviata(imap)] if pratiche._cartella_inviata(imap) else [])
     candidati, visti = [], set()
     for cartella in cartelle:
         if imap.select(cartella, readonly=True)[0] != "OK":
             continue
-        uids = set()
+        # prima le mail che citano il numero di polizza, poi quelle che citano il cliente
+        con_numero, con_nome = set(), set()
         for n in numeri:
             typ, r = imap.uid("SEARCH", None, "SINCE", dal, "TEXT", f'"{n}"')
-            uids.update((r[0] or b"").split())
-        for u in sorted(uids, key=int, reverse=True)[:MAX_MAIL_PER_POLIZZA]:
+            con_numero.update((r[0] or b"").split())
+        for n in nomi:
+            typ, r = imap.uid("SEARCH", None, "SINCE", dal, "TEXT", f'"{n}"')
+            con_nome.update((r[0] or b"").split())
+        ordinati = sorted(con_numero, key=int, reverse=True) + \
+            sorted(con_nome - con_numero, key=int, reverse=True)[:MAX_MAIL_PER_NOME]
+        for u in ordinati[:MAX_MAIL_PER_POLIZZA + MAX_MAIL_PER_NOME]:
             typ, parti = imap.uid("FETCH", u, "(BODY.PEEK[])")
             grezzo = next((p[1] for p in parti if isinstance(p, tuple)), None)
             if not grezzo:
@@ -133,7 +154,15 @@ def cerca_polizza(imap, voce, anno, anno_riserva):
                     testo = questionari.testo_pdf(dati, 5000)
                 except Exception:
                     testo = ""
-                # il numero deve comparire nel file, nel nome del file o nell'oggetto della mail
+                if chiave and chiave not in _solo_cifre(nome + oggetto) and not questionari.testo_leggibile(testo):
+                    try:   # PDF scansionato: lo legge l'OCR di Mistral (UE)
+                        testo = mistral.ocr_pdf(dati)[:5000]
+                    except mistral.TettoRaggiunto:
+                        raise
+                    except Exception:
+                        testo = ""
+                # il numero di polizza deve comparire nel PDF, nel nome del file o nell'oggetto della mail
+                # (così si trovano anche le polizze mandate con il solo nome del cliente nella mail)
                 if chiave and chiave not in _solo_cifre(testo + nome + oggetto):
                     continue
                 candidati.append({"nome": nome, "dati": dati, "testo": testo, "oggetto": oggetto[:90]})
