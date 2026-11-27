@@ -387,7 +387,9 @@ function togliContesto() { mailScelta = null; $("#contesto").classList.add("nasc
 
 // --- Viste ------------------------------------------------------------------------
 async function mostraVista(nome, senzaCaricare) {
-  $$("nav button").forEach(b => b.classList.toggle("attivo", b.dataset.vista === nome));
+  const inAltro = ["posta", "biblioteca", "collegamenti"].includes(nome);
+  $$("nav button[data-vista]").forEach(b => b.classList.toggle("attivo",
+    b.dataset.vista === nome || (b.dataset.vista === "altro" && inAltro)));
   $$(".vista").forEach(v => v.classList.add("nascosto"));
   $("#vista-" + nome).classList.remove("nascosto");
   $("#barra").classList.toggle("nascosto", nome !== "chat");
@@ -512,7 +514,7 @@ async function caricaBozze() {
 }
 
 async function contaBozze() {
-  try { const b = await api("/api/bozze"); $("#num-bozze").textContent = b.length ? "(" + b.length + ")" : ""; } catch (_) {}
+  try { const b = await api("/api/bozze"); $("#num-bozze").textContent = b.length ? String(b.length) : ""; } catch (_) {}
 }
 
 async function caricaPosta() {
@@ -609,8 +611,14 @@ $("#registra").onclick = registra;
 $("#entra").onclick = entra;
 $("#mostra-codice").onclick = e => { e.preventDefault(); $("#primo-accesso").classList.remove("nascosto"); $("#accesso").classList.add("nascosto"); };
 $("#esci").onclick = async () => { await api("/api/esci", { method: "POST" }).catch(() => {}); mostraIngresso(); };
-$$("nav button").forEach(b => b.onclick = () => mostraVista(b.dataset.vista));
-$$(".scorciatoie button").forEach(b => b.onclick = () => { $("#testo").value = b.dataset.testo; $("#testo").focus(); });
+$$("nav button[data-vista]").forEach(b => b.onclick = () => mostraVista(b.dataset.vista));
+$$(".voce-menu").forEach(b => b.onclick = () => mostraVista(b.dataset.vai));
+$("#esci-pc").onclick = () => $("#esci").click();
+$$(".suggerimenti button").forEach(b => b.onclick = () => { $("#testo").value = b.dataset.testo; $("#testo").focus(); });
+// Il benvenuto compare solo a chat vuota
+new MutationObserver(() => $("#benvenuto").classList.toggle("nascosto", $("#messaggi").children.length > 0))
+  .observe($("#messaggi"), { childList: true });
+$("#benvenuto").classList.toggle("nascosto", $("#messaggi").children.length > 0);
 $("#togli-contesto").onclick = togliContesto;
 $("#filtro-clienti").oninput = disegnaClienti;
 $("#nuovo-cliente").onclick = async () => {

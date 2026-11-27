@@ -1,4 +1,4 @@
-:root{--testo:#1f1f1f;--secondario:#666;--bordo:#e3e3e0;--fondo:#f6f6f3;--carta:#fff;--accento:#1a5fb4;--accento-chiaro:#e7f0fb;--avviso:#fdf3dc;--avviso-testo:#7a4d00;--errore:#b42318;--ok:#2b7a2b}
+:root{--testo:#1d1d1f;--secondario:#6e6e73;--bordo:#e5e5e2;--fondo:#f7f7f5;--carta:#fff;--accento:#1a5fb4;--accento-chiaro:#e8f0fb;--avviso:#fdf3dc;--avviso-testo:#7a4d00;--errore:#b42318;--ok:#2b7a2b}
 @media (prefers-color-scheme:dark){:root{--testo:#ececec;--secondario:#a3a3a3;--bordo:#333;--fondo:#141414;--carta:#1e1e1e;--accento:#78a9ec;--accento-chiaro:#1c2a3d;--avviso:#3a2e12;--avviso-testo:#f3cf83;--errore:#f28b82;--ok:#8fd18f}}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--testo);background:var(--fondo);font-size:16px}
@@ -109,3 +109,79 @@ details > summary.r-gruppo{cursor:pointer}
 .passi li,.passi-vivi li{margin:2px 0}
 .passi-vivi{font-size:13px}
 .passi-vivi li.ora-in-corso{color:var(--testo,#222);font-weight:600}
+
+/* ===== Grafica semplificata (27/11): menu laterale su PC, barra in basso su telefono ===== */
+html,body{-webkit-font-smoothing:antialiased}
+svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.logo-v{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;background:var(--accento);color:#fff;font-weight:600;font-size:16px}
+.logo-v.grande{width:56px;height:56px;border-radius:16px;font-size:28px;margin:0 auto}
+.marchio{display:flex;align-items:center;gap:10px}
+.marchio .titolo{font-weight:600;font-size:18px;letter-spacing:-.01em}
+.titolo-vista{font-size:22px;font-weight:600;margin:4px 0 2px;letter-spacing:-.01em}
+.sezione{font-size:13px;font-weight:600;color:var(--secondario);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 0}
+.stato{font-size:14px;margin:0}
+.spiega{font-size:13px;color:var(--secondario);line-height:1.45}
+.spiega summary{cursor:pointer;color:var(--accento)}
+.scheda{border-radius:16px;padding:14px 16px;gap:10px}
+
+#app{display:grid;grid-template-columns:1fr;grid-template-rows:auto 1fr auto auto;height:100vh;height:100dvh}
+header{grid-row:1;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top))}
+main{grid-row:2;padding:16px 14px 24px}
+footer{grid-row:3;border-top:none;background:var(--fondo);padding:6px 12px 10px}
+nav{grid-row:4;justify-content:space-around;gap:0;padding:4px 6px;padding-bottom:max(6px,env(safe-area-inset-bottom));border-bottom:none;border-top:1px solid var(--bordo);overflow:visible}
+nav button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;padding:6px 10px;border-radius:12px;position:relative;color:var(--secondario);min-width:64px}
+nav button.attivo{background:none;color:var(--accento)}
+nav button .conta,.conta:empty{display:none}
+nav button .conta:not(:empty){display:block;position:absolute;top:2px;right:12px;background:#d92d20;color:#fff;font-size:10px;font-weight:600;border-radius:10px;padding:1px 5px;line-height:1.3}
+.solo-pc{display:none!important}
+.esci-pc{margin-top:auto}
+
+/* campo di scrittura */
+#modulo{background:var(--carta);border:1px solid var(--bordo);border-radius:24px;padding:6px 6px 6px 8px;align-items:flex-end;gap:4px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+#testo{border:none;background:none;padding:9px 4px;max-height:180px}
+#testo:focus{outline:none}
+.graffetta{display:flex;padding:8px;color:var(--secondario);border-radius:50%}
+#invia{width:40px;height:40px;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center;flex:none}
+#invia svg{stroke:#fff;width:20px;height:20px}
+#contesto{max-width:760px;margin:0 auto 6px}
+
+/* chat */
+.vista{max-width:760px;gap:14px}
+#messaggi{display:flex;flex-direction:column;gap:14px}
+.msg{font-size:15.5px;line-height:1.5}
+.msg.roberto{border-radius:18px 18px 4px 18px;padding:10px 14px}
+.msg.braccio{border-radius:4px 18px 18px 18px;padding:12px 16px;max-width:100%}
+.msg.vega{border:none;background:var(--carta);box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.msg .titolo-r{font-size:13px;color:var(--accento);font-weight:600}
+.vega-testo strong{font-weight:600}
+.passi summary{font-weight:500}
+.attesa{background:var(--carta);border-radius:14px;padding:10px 14px}
+#benvenuto{text-align:center;padding:8vh 8px 0;display:flex;flex-direction:column;gap:10px}
+#benvenuto h2{font-size:22px;font-weight:600;margin:6px 0 0}
+.suggerimenti{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.suggerimenti button{text-align:left;font-size:14px;padding:12px 14px;border-radius:14px;line-height:1.3}
+
+/* menu "Altro" (telefono) */
+.voce-menu{display:flex;align-items:center;gap:14px;text-align:left;padding:14px 16px;border-radius:16px;width:100%}
+.voce-menu svg{color:var(--accento)}
+.voce-menu span{display:flex;flex-direction:column;font-weight:500}
+.voce-menu small{font-weight:400;font-size:13px;color:var(--secondario);margin-top:2px}
+
+/* PC: menu laterale fisso, niente barra in alto */
+@media (min-width:900px){
+  #app{grid-template-columns:232px 1fr;grid-template-rows:1fr auto}
+  header{display:none}
+  nav{grid-row:1/3;grid-column:1;flex-direction:column;justify-content:flex-start;gap:2px;padding:18px 12px;border-top:none;border-right:1px solid var(--bordo)}
+  nav .marchio{padding:4px 10px 18px}
+  nav button{flex-direction:row;font-size:15px;gap:12px;padding:10px 12px;min-width:0;width:100%;justify-content:flex-start}
+  nav button.attivo{background:var(--accento-chiaro)}
+  nav button .conta:not(:empty){position:static;margin-left:auto}
+  .solo-pc{display:flex!important}
+  .solo-mobile{display:none!important}
+  main{grid-row:1;grid-column:2;padding:28px 32px}
+  footer{grid-row:2;grid-column:2;padding:8px 32px 18px}
+  .suggerimenti{grid-template-columns:1fr 1fr}
+}
+@media (max-width:380px){.suggerimenti{grid-template-columns:1fr}}
+.b-esito:empty,.b-allegati:empty,.b-controlli:empty{display:none}
+.b-testo{min-height:120px}
