@@ -893,25 +893,27 @@ def apri_collegamento(chiave: str):
 
 @app.get("/api/chiavi")
 def stato_chiavi():
-    return {"scaleway": bool(esperto.chiave_scaleway())}
+    return {"scaleway": bool(esperto.chiave_scaleway()), "bedrock": bool(agente.chiave_bedrock()),
+            "cervello": agente.cervello()[1]}
 
 
-@app.post("/api/chiavi/scaleway")
-async def salva_chiave_scaleway(request: Request):
+@app.post("/api/chiavi/{nome}")
+async def salva_chiave(nome: str, request: Request):
     """La chiave si inserisce dalla pagina (HTTPS, dopo Face ID): resta solo sul server e non viene mai mostrata."""
+    if nome not in ("scaleway", "bedrock"):
+        raise HTTPException(404)
     chiave = ((await request.json()).get("chiave") or "").strip()
-    if chiave and not re.fullmatch(r"[A-Za-z0-9_\-]{20,200}", chiave):
+    if chiave and not re.fullmatch(r"[A-Za-z0-9_\-+/=.]{20,3000}", chiave):
         raise HTTPException(400, "La chiave non sembra valida.")
     with blocco:
         chiavi = _leggi_json(esperto.FILE_CHIAVI, {})
         if chiave:
-            chiavi["scaleway"] = chiave
+            chiavi[nome] = chiave
         else:
-            chiavi.pop("scaleway", None)
+            chiavi.pop(nome, None)
         chiavi.pop("grok", None)
         _scrivi_json(esperto.FILE_CHIAVI, chiavi)
-    esperto._modello_scelto.clear()
-    log.info("Chiave Scaleway %s.", "salvata" if chiave else "rimossa")
+    log.info("Chiave %s %s.", nome, "salvata" if chiave else "rimossa")
     return {"ok": True}
 
 

@@ -76,6 +76,13 @@
       <p class="aiuto">Fai tu il login una volta sola: il braccio destro poi usa il collegamento per chiedere un secondo parere. Le password restano tue: non vengono salvate.</p>
       <div id="elenco-collegamenti"></div>
       <div class="scheda">
+        <h3>Cervello di Vega: Kimi K2.5 su Amazon Bedrock (UE, Stoccolma)</h3>
+        <p class="piccolo" id="stato-bedrock"></p>
+        <p class="piccolo">Il modello gira sui server di Amazon a Stoccolma: i testi non escono dalla regione e non arrivano a chi ha creato il modello. Gli arrivano comunque senza nomi né codici dei clienti. Senza chiave Vega usa Mistral.</p>
+        <input id="chiave-bedrock" type="password" autocomplete="off" placeholder="Incolla qui la chiave API di Amazon Bedrock">
+        <div class="riga"><button id="togli-bedrock" class="leggero">Scollega</button><button id="salva-bedrock" class="primario">Salva chiave</button></div>
+      </div>
+      <div class="scheda">
         <h3>Revisore europeo (Scaleway, Parigi)</h3>
         <p class="piccolo" id="stato-scaleway"></p>
         <p class="piccolo">Un secondo modello, diverso da Mistral, ricontrolla le risposte dell'esperto. Scaleway è un'azienda francese: non conserva né legge i testi. Gli arrivano comunque senza nomi né codici. Senza chiave il controllo lo fa Mistral.</p>

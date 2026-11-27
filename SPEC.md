@@ -27,15 +27,18 @@ Solo Roberto, dalla pagina braccio.stital.it (accesso con Face ID).
 - Massimo 30 passi e 15 minuti per richiesta; tetto di spesa mensile interno (VEGA_TETTO_MESE_USD) oltre a quello
   del fornitore.
 
-## Cervello
-Scelto con VEGA_MODELLO (libreria LiteLLM):
-- oggi: Mistral Large UE (già in uso, nessun nuovo fornitore);
-- dopo l'ok di Roberto: Claude su Amazon Bedrock, regione Francoforte, con tetto di spesa bloccante.
+## Cervello (decisione di Roberto, 27/11/2026)
+- Kimi K2.5 su Amazon Bedrock, regione UE Stoccolma (eu-north-1), solo in-region: le richieste non escono dalla
+  regione e Moonshot (chi ha creato il modello) non riceve i dati. Prezzo di listino: 0,72 $ / 3,60 $ per milione
+  di token in ingresso/uscita.
+- Finché la chiave Bedrock non è inserita dalla pagina (Collegamenti), Vega usa Mistral Large UE.
+- Tetti di spesa: azione di budget AWS che toglie il permesso a Bedrock al superamento della soglia, più il tetto
+  interno mensile di Vega (VEGA_TETTO_MESE_USD), che blocca subito.
 
 ## Flusso dei dati (per registro trattamenti e DPIA)
 | Cosa | Dove va | Perché |
 |---|---|---|
-| Richiesta, testo di mail e documenti, coperti dal velo | Fornitore del cervello (Mistral UE oppure Bedrock Francoforte) | Decidere i passi e scrivere bozze |
+| Richiesta, testo di mail e documenti, coperti dal velo | Amazon Bedrock, Stoccolma (Kimi K2.5); Mistral UE come riserva | Decidere i passi e scrivere bozze |
 | PDF scansionati (OCR) | Mistral UE, come oggi | Leggere il testo |
 | Tabella dei segnaposto, documenti, schede | Solo server Aruba | Ripristinare i dati, archivio |
 

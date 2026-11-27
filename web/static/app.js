@@ -554,6 +554,7 @@ async function caricaCollegamenti() {
 async function caricaScaleway() {
   const k = await api("/api/chiavi");
   $("#stato-scaleway").textContent = k.scaleway ? "Collegato." : "Non collegato: il controllo lo fa Mistral.";
+  $("#stato-bedrock").textContent = (k.bedrock ? "Collegato. " : "Non collegato. ") + "Vega ora usa: " + k.cervello + ".";
 }
 
 async function caricaBiblioteca() {
@@ -612,6 +613,15 @@ $("#salva-scaleway").onclick = async () => {
 $("#togli-scaleway").onclick = async () => {
   if (!confirm("Scollegare il revisore europeo?")) return;
   await api("/api/chiavi/scaleway", { json: { chiave: "" } }).catch(e => alert(e.message)); caricaScaleway();
+};
+$("#salva-bedrock").onclick = async () => {
+  const chiave = $("#chiave-bedrock").value.trim();
+  if (!chiave) { alert("Incolla prima la chiave."); return; }
+  try { await api("/api/chiavi/bedrock", { json: { chiave } }); $("#chiave-bedrock").value = ""; caricaScaleway(); } catch (e) { alert(e.message); }
+};
+$("#togli-bedrock").onclick = async () => {
+  if (!confirm("Scollegare Bedrock? Vega tornerà a usare Mistral.")) return;
+  await api("/api/chiavi/bedrock", { json: { chiave: "" } }).catch(e => alert(e.message)); caricaScaleway();
 };
 $("#carica-biblioteca").onclick = async () => {
   const fd = new FormData(); [...$("#file-biblioteca").files].forEach(f => fd.append("file", f));

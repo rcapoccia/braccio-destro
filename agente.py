@@ -32,7 +32,15 @@ import time
 import velo as velo_mod
 
 log = logging.getLogger("vega")
-MODELLO = os.environ.get("VEGA_MODELLO", "mistral/mistral-large-2512")
+# Cervello (decisione di Roberto, 27/11/2026): Kimi K2.5 su Amazon Bedrock, regione UE Stoccolma (in-region, nessun
+# instradamento fuori regione). Finché la chiave Bedrock non è inserita dalla pagina, si usa Mistral UE.
+BEDROCK_MODELLO = os.environ.get("VEGA_BEDROCK_MODELLO", "moonshotai.kimi-k2.5")
+BEDROCK_URL = os.environ.get("VEGA_BEDROCK_URL", "https://bedrock-mantle.eu-north-1.api.aws/v1")
+RISERVA = os.environ.get("VEGA_RISERVA", "mistral/mistral-large-2512")
+# prezzi in dollari per milione di token (ingresso, uscita), per il tetto di spesa interno
+PREZZI = {"bedrock": (float(os.environ.get("VEGA_PREZZO_IN", "0.72")), float(os.environ.get("VEGA_PREZZO_OUT", "3.60"))),
+          "mistral": (0.50, 1.50)}
+FILE_CHIAVI = os.path.join(os.environ.get("WEB_DATI", "/var/lib/braccio-destro/web"), "chiavi.json")  # come esperto.py
 MAX_PASSI = int(os.environ.get("VEGA_MAX_PASSI", "30"))
 MAX_SECONDI = int(os.environ.get("VEGA_MAX_SECONDI", "900"))
 MAX_TESTO = 7000
@@ -410,20 +418,38 @@ def estrai_testo(nome, dati):
 
 
 # --- il cervello ----------------------------------------------------------------------------
+def chiave_bedrock():
+    try:
+        with open(FILE_CHIAVI) as f:
+            return json.load(f).get("bedrock") or os.environ.get("BEDROCK_API_KEY")
+    except (OSError, ValueError):
+        return os.environ.get("BEDROCK_API_KEY")
+
+
+def cervello():
+    """Quale modello usa Vega adesso: ("bedrock", nome) se la chiave c'è, altrimenti ("mistral", nome)."""
+    return ("bedrock", "Kimi K2.5 su Amazon Bedrock (UE, Stoccolma)") if chiave_bedrock() else \
+           ("mistral", "Mistral Large (UE)")
+
+
 def chiama_modello(messaggi, attrezzi):
-    """Una chiamata al modello scelto (LiteLLM: Bedrock, Mistral...). Ritorna il messaggio dell'assistente."""
+    """Una chiamata al cervello di Vega (via LiteLLM). Ritorna il messaggio dell'assistente."""
     import litellm
     if _spesa() >= TETTO_MESE_USD:
         raise TettoRaggiunto()
-    parametri = {}
-    if MODELLO.startswith("mistral/"):
-        parametri["api_base"] = os.environ.get("MISTRAL_BASE", "https://api.eu.mistral.ai/v1")
-    r = litellm.completion(model=MODELLO, messages=messaggi, tools=attrezzi, tool_choice="auto",
-                           temperature=0.2, timeout=180, max_tokens=4000, **parametri)
+    tipo, _ = cervello()
+    if tipo == "bedrock":   # endpoint compatibile OpenAI di Bedrock, regione UE
+        parametri = {"model": "openai/" + BEDROCK_MODELLO, "api_base": BEDROCK_URL, "api_key": chiave_bedrock()}
+    else:
+        parametri = {"model": RISERVA, "api_base": os.environ.get("MISTRAL_BASE", "https://api.eu.mistral.ai/v1")}
+    r = litellm.completion(messages=messaggi, tools=attrezzi, tool_choice="auto", temperature=0.2,
+                           timeout=180, max_tokens=4000, **parametri)
     try:
-        _spesa(litellm.completion_cost(completion_response=r) or 0.0)
+        uso = r.usage
+        prezzo_in, prezzo_out = PREZZI[tipo]
+        _spesa((uso.prompt_tokens * prezzo_in + uso.completion_tokens * prezzo_out) / 1_000_000)
     except Exception:
-        _spesa(0.05)   # costo non calcolabile: si conta una stima prudente
+        _spesa(0.05)   # consumo non leggibile: si conta una stima prudente
     m = r.choices[0].message
     return {"content": m.content or "", "tool_calls": [
         {"id": c.id, "name": c.function.name, "arguments": c.function.arguments} for c in (m.tool_calls or [])]}
